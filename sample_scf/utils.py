@@ -36,7 +36,7 @@ from numpy import (
 from scipy.special import legendre, lpmn
 
 # LOCAL
-from ._typing import NDArray64, RandomLike
+from ._typing import NDArray64
 
 __all__ = [
     "zeta_of_r",
