@@ -1,0 +1,21 @@
+# General Labels
+GitHub:
+  - .github/**/*
+
+Notebooks:
+  - notebooks/**/*
+
+# Package Labels
+sampling:
+  - sample_scf/sample_*
+
+utils:
+  - sample_scf/utils.py
+
+tests:
+  - sample_scf/tests/**/*
+
+
+# Docs Labels
+Docs:
+  - docs/**/*
