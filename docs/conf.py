@@ -29,21 +29,21 @@
 import datetime
 import os
 import sys
+from configparser import ConfigParser
 from importlib import import_module
 
 try:
-    # THIRD PARTY
-    from sphinx_astropy.conf.v1 import *  # noqa
+    from sphinx_astropy.conf.v1 import *  # isort: skip  # noqa: F401, F403
 except ImportError:
     print("ERROR: the documentation requires the sphinx-astropy package to be installed")
     sys.exit(1)
+else:
+    # THIRD PARTY
+    from sphinx_astropy.conf.v1 import exclude_patterns, extensions, rst_epilog
 
-# BUILT-IN
-# Get configuration information from setup.cfg
-from configparser import ConfigParser
 
+# read configuration
 conf = ConfigParser()
-
 conf.read([os.path.join(os.path.dirname(__file__), "..", "setup.cfg")])
 setup_cfg = dict(conf.items("metadata"))
 

@@ -18,10 +18,7 @@ from astropy.version import version as astropy_version  # noqa: F401
 
 try:
     # THIRD PARTY
-    from pytest_astropy_header.display import (
-        PYTEST_HEADER_MODULES,
-        TESTED_VERSIONS,
-    )
+    from pytest_astropy_header.display import PYTEST_HEADER_MODULES, TESTED_VERSIONS
 
     ASTROPY_HEADER = True
 except ImportError:
@@ -62,5 +59,5 @@ def pytest_configure(config):
 # To ignore some specific deprecation warning messages for Python version
 # MAJOR.MINOR or later, add:
 #     warnings_to_ignore_by_pyver={(MAJOR, MINOR): ['Message to ignore']}
-# from astropy.tests.helper import enable_deprecations_as_exceptions  # noqa
+# from astropy.tests.helper import enable_deprecations_as_exceptions  # noqa: F401
 # enable_deprecations_as_exceptions()

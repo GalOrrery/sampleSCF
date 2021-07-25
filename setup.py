@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 # NOTE: The configuration for the package, including the name, version, and
@@ -81,5 +82,5 @@ setup(
         "write_to": os.path.join("sample_scf", "version.py"),
         "write_to_template": VERSION_TEMPLATE,
     },
-    ext_modules=get_extensions()
+    ext_modules=get_extensions(),
 )
