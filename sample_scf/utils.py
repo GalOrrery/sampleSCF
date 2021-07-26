@@ -56,7 +56,7 @@ lpmn_vec = np.vectorize(lpmn, otypes=(object, object))
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
 
-    # TODO! organize & allow for lmax > 200.
+    # TODO! allow for lmax > 200.
     lrange = arange(0, 200 + 1)
     Pls = array([legendre(L) for L in lrange], dtype=object)
     # l=1+. l=0 is done separately
@@ -81,13 +81,14 @@ def zeta_of_r(r: T.Union[u.Quantity, NDArray64]) -> NDArray64:
     Parameters
     ----------
     r : quantity-like ['length']
+        'r' must be in [0, infinity).
 
     Returns
     -------
     zeta : ndarray
         With shape (len(r),)
     """
-    ra: NDArray64 = r.value if isinstance(r, u.Quantity) else r
+    ra: NDArray64 = r.value if isinstance(r, u.Quantity) else np.asanyarray(r)
     zeta: NDArray64 = nan_to_num(divide(ra - 1, ra + 1), nan=1)
     return zeta
 
@@ -110,11 +111,12 @@ def r_of_zeta(
 
     Returns
     -------
-    r: ndarray
+    r: ndarray[float] or Quantity
+        If Quantity, has units of 'units'.
     """
     z = array(zeta, subok=True)
     r = atleast_1d(divide(1 + z, 1 - z))
-    r[r < 0] = 0
+    r[r < 0] = 0  # correct small errors
 
     rq: T.Union[u.Quantity, NDArray64] = r * (unit or 1)
     return rq
@@ -126,18 +128,20 @@ def r_of_zeta(
 # -------------------------------------------------------------------
 
 
-def _x_of_theta(theta: NDArray64) -> NDArray64:
+def _x_of_theta(theta: npt.ArrayLike) -> NDArray64:
     r""":math:`x = \cos{\theta}`.
 
     Parameters
     ----------
     theta : array-like ['radian']
+        :math:`\theta \in [-\pi/2, \pi/2]`
 
     Returns
     -------
     x : float or array-like
+        :math:`x \in [-1, 1]`
     """
-    x: NDArray64 = cos(pi / 2 - theta)
+    x: NDArray64 = cos(pi / 2 - np.asanyarray(theta))
     return x
 
 
@@ -185,10 +189,14 @@ def thetaQls(pot: SCFPotential, r: T.Union[float, NDArray64]) -> NDArray64:
     # compute the r-dependent coefficient matrix $\tilde{\rho}$  # (R, N, L)
     nmax, lmax = pot._Acos.shape[:2]
     rs = atleast_1d(r)  # need r to be array.
-    rhoTilde = array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rs])
+    rhoTilde = nan_to_num(
+        array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rs]),
+        posinf=np.inf,
+        neginf=-np.inf,
+    )
 
     # inclination weighting factors
-    Qls = sum(pot._Acos[None, :, :, 0] * rhoTilde, axis=1)  # (R, N, L)
+    Qls = nan_to_num(sum(pot._Acos[None, :, :, 0] * rhoTilde, axis=1), nan=1)  # (R, N, L)
 
     # remove extra dimensions, e.g. scalar 'r'
     Ql: NDArray64 = Qls.squeeze()

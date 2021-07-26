@@ -111,7 +111,10 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
     #     # /def
 
     def __init__(
-        self, pot: SCFPotential, method: T.Literal["interp", "exact"], **kwargs: T.Any
+        self,
+        pot: SCFPotential,
+        method: T.Union[T.Literal["interp", "exact"], T.Mapping],
+        **kwargs: T.Any
     ) -> None:
         if not isinstance(method, Mapping):
             raise NotImplementedError
