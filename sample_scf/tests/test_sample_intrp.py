@@ -7,14 +7,16 @@
 # IMPORTS
 
 # THIRD PARTY
-import astropy.units as u
-import numpy as np
+# import astropy.units as u
+# import numpy as np
 import pytest
-from galpy.potential import SCFPotential
 
 # LOCAL
 from .test_base import Test_rv_continuous_modrvs, Test_SCFSamplerBase
 from sample_scf import sample_intrp
+
+# from galpy.potential import SCFPotential
+
 
 ##############################################################################
 # TESTS

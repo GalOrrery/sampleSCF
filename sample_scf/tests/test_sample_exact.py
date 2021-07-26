@@ -14,19 +14,22 @@ __all__ = [
 
 # BUILT-IN
 import pathlib
-import time
 
 # THIRD PARTY
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
-import pytest
-from astropy.utils.misc import NumpyRNGContext
-from galpy.df import isotropicHernquistdf
+
+# import pytest
+# from astropy.utils.misc import NumpyRNGContext
+# from galpy.df import isotropicHernquistdf
 from galpy.potential import HernquistPotential, SCFPotential
 
 # LOCAL
-from sample_scf.sample_exact import SCFPhiSampler, SCFRSampler, SCFSampler, SCFThetaSampler
-from sample_scf.utils import x_of_theta, zeta_of_r
+# from sample_scf.sample_exact import SCFPhiSampler, SCFRSampler, SCFSampler, SCFThetaSampler
+from sample_scf.utils import zeta_of_r  # x_of_theta
+
+# import time
+
 
 ##############################################################################
 # PARAMETERS

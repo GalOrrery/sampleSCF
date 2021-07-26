@@ -28,7 +28,6 @@ from scipy.interpolate import (
     splev,
     splrep,
 )
-from scipy.stats import rv_continuous
 
 # LOCAL
 from ._typing import NDArray64, RandomLike
@@ -607,7 +606,7 @@ class SCFPhiSampler(rv_continuous_modrvs):
         r, theta : array-like[float]
         size : int or None (optional, keyword-only)
             Size of random variates to generate.
-        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+        random_state : int, `~numpy.random.RandomState`, or None (optional, keyword-only)
             If seed is None (or numpy.random), the `numpy.random.RandomState`
             singleton is used. If seed is an int, a new RandomState instance is
             used, seeded with seed. If seed is already a Generator or

@@ -53,7 +53,7 @@ class rv_continuous_modrvs(rv_continuous):
         *args
         size : int or None (optional, keyword-only)
             Size of random variates to generate.
-        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+        random_state : int, `~numpy.random.RandomState`, or None (optional, keyword-only)
             If seed is None (or numpy.random), the `numpy.random.RandomState`
             singleton is used. If seed is an int, a new RandomState instance is
             used, seeded with seed. If seed is already a Generator or
@@ -164,7 +164,7 @@ class SCFSamplerBase:
         ----------
         size : int or None (optional, keyword-only)
             Defining number of random variates.
-        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+        random_state : int, `~numpy.random.RandomState`, or None (optional, keyword-only)
             If seed is None (or numpy.random), the `numpy.random.RandomState`
             singleton is used. If seed is an int, a new RandomState instance is
             used, seeded with seed. If seed is already a Generator or
