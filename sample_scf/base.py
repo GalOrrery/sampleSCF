@@ -46,6 +46,24 @@ class rv_continuous_modrvs(rv_continuous):
         size: T.Optional[int] = None,
         random_state: RandomLike = None
     ) -> NDArray64:
+        """Random variate sampler.
+
+        Parameters
+        ----------
+        *args
+        size : int or None (optional, keyword-only)
+            Size of random variates to generate.
+        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+            If seed is None (or numpy.random), the `numpy.random.RandomState`
+            singleton is used. If seed is an int, a new RandomState instance is
+            used, seeded with seed. If seed is already a Generator or
+            RandomState instance then that instance is used.
+
+        Returns
+        -------
+        ndarray[float]
+            Shape 'size'.
+        """
         # extra gymnastics needed for a custom random_state
         rndm: np.random.RandomState
         if random_state is not None:
@@ -140,14 +158,14 @@ class SCFSamplerBase:
     def rvs(
         self, *, size: T.Optional[int] = None, random_state: RandomLike = None
     ) -> PhysicsSphericalRepresentation:
-        """Sample random variates
+        """Sample random variates.
 
         Parameters
         ----------
-        size : int, optional
-            Defining number of random variates (default is 1).
-        random_state : None, int, `numpy.random.Generator`, `numpy.random.RandomState`, optional
-            If seed is None (or np.random), the `numpy.random.RandomState`
+        size : int or None (optional, keyword-only)
+            Defining number of random variates.
+        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+            If seed is None (or numpy.random), the `numpy.random.RandomState`
             singleton is used. If seed is an int, a new RandomState instance is
             used, seeded with seed. If seed is already a Generator or
             RandomState instance then that instance is used.

@@ -33,7 +33,7 @@ __all__: T.List[str] = ["SCFSampler", "SCFRSampler", "SCFThetaSampler", "SCFPhiS
 # PARAMETERS
 
 TSCFPhi = T.TypeVar("TSCFPhi", bound="SCFPhiSampler")
-
+TSCFThetaSamplerBase = T.TypeVar("TSCFThetaSamplerBase", bound="SCFThetaSamplerBase")
 
 ##############################################################################
 # CODE
@@ -102,8 +102,6 @@ class SCFRSampler(rv_continuous):
 
 # -------------------------------------------------------------------
 # inclination sampler
-
-TSCFThetaSamplerBase = T.TypeVar("TSCFThetaSamplerBase", bound="SCFThetaSamplerBase")
 
 
 class SCFThetaSamplerBase(rv_continuous_modrvs):
@@ -178,14 +176,6 @@ class SCFThetaSampler(SCFThetaSamplerBase):
 
     def __init__(self, pot: SCFPotential, r: float, **kw: T.Any) -> None:
         super().__init__(pot)
-        # allowed range of theta
-        #         rv_continuous_modrvs.__init__(self, a=-np.pi / 2, b=np.pi / 2)
-        #
-        #         # parse from potential
-        #         self._pot = pot
-        #         # shape parameters
-        #         self._nmax, self._lmax = pot._Acos.shape[:2]
-        #         self._lrange = np.arange(0, self._lmax + 1)  # lmax inclusive
 
         # points at which CDF is defined
         self._r = r

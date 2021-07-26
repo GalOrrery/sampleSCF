@@ -82,34 +82,6 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
         Passed to to the individual component sampler constructors.
     """
 
-    #     def __new__(
-    #         cls,
-    #         pot: SCFPotential,
-    #         *args: T.Any,
-    #         method: T.Union[T.Literal["interp", "exact"], T.Mapping[str, T.Callable]] = "interp",
-    #         **kwargs: T.Any
-    #     ) -> SCFSamplerBase:
-    #
-    #         self: SCFSamplerBase
-    #         if method == "interp":
-    #             # LOCAL
-    #             from sample_scf.sample_intrp import SCFSampler as interpcls
-    #
-    #             self = interpcls(pot, *args, method=method, **kwargs)
-    #         elif method == "exact":
-    #             # LOCAL
-    #             from sample_scf.sample_exact import SCFSampler as exactcls
-    #
-    #             self = exactcls(pot, *args, method=method, **kwargs)
-    #         elif isinstance(method, Mapping):
-    #             self = super().__new__(cls)
-    #         else:
-    #             raise ValueError("`method` must be {'interp', 'exact'} or mapping.")
-    #
-    #         return self
-    #
-    #     # /def
-
     def __init__(
         self,
         pot: SCFPotential,

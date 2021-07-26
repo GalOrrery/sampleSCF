@@ -160,7 +160,7 @@ class SCFSampler(SCFSamplerBase):
 # radial sampler
 
 
-class SCFRSampler(rv_continuous):
+class SCFRSampler(rv_continuous_modrvs):
     """Sample radial coordinate from an SCF potential.
 
     The potential must have a convergent mass function.
@@ -336,6 +336,17 @@ class SCFThetaSampler(rv_continuous_modrvs):
     # /def
 
     def cdf(self, theta: npt.ArrayLike, r: npt.ArrayLike) -> NDArray64:
+        """Cumulative Distribution Function.
+
+        Parameters
+        ----------
+        theta : array-like or Quantity-like
+        r : array-like or Quantity-like
+
+        Returns
+        -------
+        cdf : ndarray[float]
+        """
         # TODO! make sure r, theta in right domain
         cdf = self._cdf(x_of_theta(u.Quantity(theta, u.rad)), zeta=zeta_of_r(r))
         return cdf
@@ -424,12 +435,21 @@ class SCFThetaSampler(rv_continuous_modrvs):
 
 
 class SCFPhiSampler(rv_continuous_modrvs):
-    """SCF phi sampler
+    """SCF phi sampler.
 
     .. todo::
 
         Make sure that stuff actually goes from 0 to 1.
 
+    Parameters
+    ----------
+    pot : `galpy.potential.SCFPotential`
+    rgrid : ndarray[float]
+    tgrid : ndarray[float]
+    pgrid : ndarray[float]
+    intrp_step : float, optional
+    **kw
+        Not used
     """
 
     def __init__(
@@ -580,10 +600,30 @@ class SCFPhiSampler(rv_continuous_modrvs):
         size: T.Optional[int] = None,
         random_state: RandomLike = None,
     ) -> NDArray64:
+        """Random variate sampler.
+
+        Parameters
+        ----------
+        r, theta : array-like[float]
+        size : int or None (optional, keyword-only)
+            Size of random variates to generate.
+        random_state : int, `~numpy.random.Generator`, `~numpy.random.RandomState`, or None (optional, keyword-only)
+            If seed is None (or numpy.random), the `numpy.random.RandomState`
+            singleton is used. If seed is an int, a new RandomState instance is
+            used, seeded with seed. If seed is already a Generator or
+            RandomState instance then that instance is used.
+
+        Returns
+        -------
+        ndarray[float]
+            Shape 'size'.
+        """
         return super().rvs(r, theta, size=size, random_state=random_state)
 
     # /def
 
+
+# /class
 
 ##############################################################################
 # END
