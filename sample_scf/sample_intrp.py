@@ -122,7 +122,9 @@ class SCFSampler(SCFSamplerBase):
     ) -> None:
         # compute the r-dependent coefficient matrix $\tilde{\rho}$
         nmax, lmax = pot._Acos.shape[:2]
-        rhoTilde = np.array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid])  # (R, N, L)
+        rhoTilde = np.array(
+            [pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid],
+        )  # (R, N, L)
 
         # ----------
         # theta Qls
@@ -134,7 +136,13 @@ class SCFSampler(SCFSamplerBase):
         # phi Rm, Sm
         # radial and inclination sums
 
-        Rm, Sm = _phiRSms(rhoTilde, Acos=pot._Acos, Asin=pot._Asin, r=rgrid, theta=thetagrid)
+        Rm, Sm = _phiRSms(
+            rhoTilde,
+            Acos=pot._Acos,
+            Asin=pot._Asin,
+            r=rgrid,
+            theta=thetagrid,
+        )
 
         # ----------
         # make samplers
@@ -184,8 +192,18 @@ class SCFRSampler(rv_continuous):
         # work in zeta, not r, since it is more numerically stable
         zeta = zeta_of_r(rgrid)
         # make splines for fast calculation
-        self._spl_cdf = InterpolatedUnivariateSpline(zeta, mgrid, ext="raise", bbox=[-1, 1])
-        self._spl_ppf = InterpolatedUnivariateSpline(mgrid, zeta, ext="raise", bbox=[0, 1])
+        self._spl_cdf = InterpolatedUnivariateSpline(
+            zeta,
+            mgrid,
+            ext="raise",
+            bbox=[-1, 1],
+        )
+        self._spl_ppf = InterpolatedUnivariateSpline(
+            mgrid,
+            zeta,
+            ext="raise",
+            bbox=[0, 1],
+        )
 
         # TODO! make sure
         # # store endpoint values to ensure CDF normalized to [0, 1]
@@ -479,7 +497,9 @@ class SCFPhiSampler(rv_continuous_modrvs):
         # start by supersampling
         Zetas, Xs, Phis = np.meshgrid(zetas, xs, self._phi_interpolant, indexing="ij")
         _cdfs = self._spl_cdf((Zetas.ravel(), Xs.ravel(), Phis.ravel())).reshape(
-            lR, lT, len(self._phi_interpolant)
+            lR,
+            lT,
+            len(self._phi_interpolant),
         )
         # build reverse spline
         ppfs = np.empty((lR, lT, self._ninterpolant), dtype=np.float64)
@@ -488,7 +508,9 @@ class SCFPhiSampler(rv_continuous_modrvs):
             ppfs[i, j, :] = splev(qarr, spl, ext=0)
         # interpolate
         self._spl_ppf = RegularGridInterpolator(
-            (zetas, xs, self._q_interpolant), ppfs, bounds_error=False
+            (zetas, xs, self._q_interpolant),
+            ppfs,
+            bounds_error=False,
         )
 
     # /def
@@ -505,7 +527,12 @@ class SCFPhiSampler(rv_continuous_modrvs):
 
     # /def
 
-    def cdf(self, phi: npt.ArrayLike, r: npt.ArrayLike, theta: npt.ArrayLike) -> NDArray64:
+    def cdf(
+        self,
+        phi: npt.ArrayLike,
+        r: npt.ArrayLike,
+        theta: npt.ArrayLike,
+    ) -> NDArray64:
         # TODO! make sure r, theta in right domain
         cdf = self._cdf(
             phi,

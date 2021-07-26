@@ -23,8 +23,6 @@ from scipy.stats import rv_continuous
 
 # LOCAL
 from ._typing import NDArray64, RandomLike
-
-# PROJECT-SPECIFIC
 from .base import SCFSamplerBase, rv_continuous_modrvs
 from .utils import _x_of_theta, difPls, phiRSms, thetaQls, x_of_theta
 
@@ -332,7 +330,7 @@ class SCFPhiSampler(SCFPhiSamplerBase):
         factor = 1 / Rm[0]  # R0
         ms = np.arange(1, Rm.shape[1])
         term1p = np.sum(
-            (Rm[1:] * np.sin(ms * phi) + Sm[1:] * (1 - np.cos(ms * phi))) / (2 * np.pi * ms)
+            (Rm[1:] * np.sin(ms * phi) + Sm[1:] * (1 - np.cos(ms * phi))) / (2 * np.pi * ms),
         )
 
         cdf: NDArray64 = term0 + factor * term1p

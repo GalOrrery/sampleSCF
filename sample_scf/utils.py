@@ -96,7 +96,8 @@ def zeta_of_r(r: T.Union[u.Quantity, NDArray64]) -> NDArray64:
 
 
 def r_of_zeta(
-    zeta: npt.ArrayLike, unit: T.Optional[u.UnitBase] = None
+    zeta: npt.ArrayLike,
+    unit: T.Optional[u.UnitBase] = None,
 ) -> T.Union[u.Quantity, NDArray64]:
     r""":math:`r = \frac{1 + \zeta}{1 - \zeta}`
 
@@ -258,7 +259,9 @@ def _phiRSms(
 
 
 def phiRSms(
-    pot: SCFPotential, r: npt.ArrayLike, theta: npt.ArrayLike
+    pot: SCFPotential,
+    r: npt.ArrayLike,
+    theta: npt.ArrayLike,
 ) -> T.Tuple[NDArray64, NDArray64]:
     r"""Radial and inclination sums for azimuthal weighting factors.
 

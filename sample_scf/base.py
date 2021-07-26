@@ -109,7 +109,12 @@ class SCFSamplerBase:
 
     # /def
 
-    def cdf(self, r: npt.ArrayLike, theta: npt.ArrayLike, phi: npt.ArrayLike) -> NDArray64:
+    def cdf(
+        self,
+        r: npt.ArrayLike,
+        theta: npt.ArrayLike,
+        phi: npt.ArrayLike,
+    ) -> NDArray64:
         """
         Cumulative Distribution Functions in r, theta(r), phi(r, theta)
 
@@ -156,7 +161,9 @@ class SCFSamplerBase:
         phis = self.phisampler.rvs(rs, thetas, size=size, random_state=random_state)
 
         crd = PhysicsSphericalRepresentation(
-            r=rs, theta=(np.pi / 2 - thetas) * u.rad, phi=phis * u.rad
+            r=rs,
+            theta=(np.pi / 2 - thetas) * u.rad,
+            phi=phis * u.rad,
         )
         return crd
 
