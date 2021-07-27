@@ -32,16 +32,7 @@ from scipy.interpolate import (
 # LOCAL
 from ._typing import NDArray64, RandomLike
 from .base import SCFSamplerBase, rv_continuous_modrvs
-from .utils import (
-    _phiRSms,
-    _x_of_theta,
-    difPls,
-    phiRSms,
-    r_of_zeta,
-    thetaQls,
-    x_of_theta,
-    zeta_of_r,
-)
+from .utils import _phiRSms, difPls, phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
 __all__: T.List[str] = ["SCFSampler", "SCFRSampler", "SCFThetaSampler", "SCFPhiSampler"]
 
@@ -253,7 +244,7 @@ class SCFThetaSampler(rv_continuous_modrvs):
         super().__init__(a=-np.pi / 2, b=np.pi / 2)  # allowed range of theta
 
         self._theta_interpolant = np.arange(-np.pi / 2, np.pi / 2, intrp_step)
-        self._x_interpolant = _x_of_theta(self._theta_interpolant)
+        self._x_interpolant = x_of_theta(self._theta_interpolant)
         self._q_interpolant = np.linspace(0, 1, len(self._theta_interpolant))
 
         # -------
@@ -268,7 +259,7 @@ class SCFThetaSampler(rv_continuous_modrvs):
         # TODO: clean up shape stuff
 
         zetas = zeta_of_r(rgrid)  # (R,)
-        xs = _x_of_theta(tgrid)  # (T,)
+        xs = x_of_theta(tgrid)  # (T,)
 
         if "Qls" in kw:
             Qls: NDArray64 = kw["Qls"]
@@ -476,7 +467,7 @@ class SCFPhiSampler(rv_continuous_modrvs):
         # build CDF
 
         zetas = zeta_of_r(rgrid)  # (R,)
-        xs = _x_of_theta(tgrid)  # (T,)
+        xs = x_of_theta(tgrid)  # (T,)
 
         lR, lT, _ = len(rgrid), len(tgrid), len(pgrid)
 
@@ -571,7 +562,7 @@ class SCFPhiSampler(rv_continuous_modrvs):
         grid: bool = False,
         **kw: T.Any,
     ) -> NDArray64:
-        ppf: NDArray64 = self._spl_ppf((zeta_of_r(r), _x_of_theta(theta), q))
+        ppf: NDArray64 = self._spl_ppf((zeta_of_r(r), x_of_theta(theta), q))
         return ppf
 
     # /def

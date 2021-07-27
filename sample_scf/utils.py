@@ -12,6 +12,7 @@ Description.
 from __future__ import annotations
 
 # BUILT-IN
+import functools
 import typing as T
 import warnings
 
@@ -22,6 +23,7 @@ import numpy.typing as npt
 from galpy.potential import SCFPotential
 from numpy import (
     arange,
+    arccos,
     array,
     asanyarray,
     atleast_1d,
@@ -118,7 +120,9 @@ def r_of_zeta(
     r = atleast_1d(divide(1 + z, 1 - z))
     r[r < 0] = 0  # correct small errors
 
-    rq: T.Union[u.Quantity, NDArray64] = r * (unit or 1)
+    rq: T.Union[NDArray64, u.Quantity]
+    rq = r << unit if unit is not None else r
+
     return rq
 
 
@@ -128,7 +132,8 @@ def r_of_zeta(
 # -------------------------------------------------------------------
 
 
-def _x_of_theta(theta: npt.ArrayLike) -> NDArray64:
+@functools.singledispatch
+def x_of_theta(theta: npt.ArrayLike) -> NDArray64:
     r""":math:`x = \cos{\theta}`.
 
     Parameters
@@ -138,18 +143,15 @@ def _x_of_theta(theta: npt.ArrayLike) -> NDArray64:
 
     Returns
     -------
-    x : float or array-like
+    x : ndarray[float]
         :math:`x \in [-1, 1]`
     """
     x: NDArray64 = cos(pi / 2 - np.asanyarray(theta))
     return x
 
 
-# /def
-
-
-# @u.quantity_input(theta=u.radian)
-def x_of_theta(theta: u.Quantity) -> NDArray64:
+@x_of_theta.register
+def _(theta: u.Quantity) -> NDArray64:
     r""":math:`x = \cos{\theta}`.
 
     Parameters
@@ -160,11 +162,40 @@ def x_of_theta(theta: u.Quantity) -> NDArray64:
     -------
     x : float or ndarray
     """
-    x = _x_of_theta(theta.to_value(u.rad))
+    x = NDArray64 = cos(pi / 2 - theta.to_value(u.rad))
     return x
 
 
 # /def
+
+
+def theta_of_x(
+    x: npt.ArrayLike, unit: T.Optional[u.UnitBase] = None
+) -> T.Union[NDArray64, u.Quantity]:
+    r""":math:`\theta = \cos^{-1}{x}`.
+
+    Parameters
+    ----------
+    x : array-like
+    unit : unit-like['angular'] or None, optional
+
+    Returns
+    -------
+    theta : float or ndarray
+    """
+    th: NDArray64 = pi / 2 - arccos(x)
+
+    theta: T.Union[NDArray64, u.Quantity]
+    if unit is not None:
+        theta = u.Quantity(th, u.rad).to(unit)
+    else:
+        theta = th
+
+    return theta
+
+
+# /def
+
 
 # -------------------------------------------------------------------
 
@@ -233,7 +264,7 @@ def _phiRSms(
     tgrid: NDArray64 = atleast_1d(theta)
 
     # transform to correct shape for vectorized computation
-    x = _x_of_theta(asanyarray(tgrid))  # (T,)
+    x = x_of_theta(tgrid)  # (T,)
     Xs = x[None, :, None, None, None]  # ({R}, X, {N}, {L}, {L})
 
     # compute the r-dependent coefficient matrix $\tilde{\rho}$
@@ -254,6 +285,10 @@ def _phiRSms(
     # n-sum  # (R, X, L, L)
     Rlm = sum(Acos[None, None, :, :, :] * RSnlm, axis=2)
     Slm = sum(Asin[None, None, :, :, :] * RSnlm, axis=2)
+    # fix adding +/- inf -> NaN. happens when r=0.
+    idx = np.all(np.isnan(Rlm[:, 0, 0, :]), axis=-1)
+    Rlm[idx, 0, 0, :] = nan_to_num(Rlm[idx, 0, 0, :])
+    Slm[idx, 0, 0, :] = nan_to_num(Slm[idx, 0, 0, :])
 
     # m-sum  # (R, X, L)
     sumidx = range(Rlm.shape[2])
@@ -302,7 +337,12 @@ def phiRSms(
     nmax: int
     lmax: int
     nmax, lmax = pot._Acos.shape[:2]
-    rhoTilde = array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid])
+    rhoTilde = nan_to_num(
+        array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid]),
+        nan=0,
+        posinf=np.inf,
+        neginf=-np.inf,
+    )
 
     # pass to actual calculator, which takes the matrices and r, theta grids.
     Rm, Sm = _phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)

@@ -24,7 +24,7 @@ from scipy.stats import rv_continuous
 # LOCAL
 from ._typing import NDArray64, RandomLike
 from .base import SCFSamplerBase, rv_continuous_modrvs
-from .utils import _x_of_theta, difPls, phiRSms, thetaQls, x_of_theta
+from .utils import difPls, phiRSms, thetaQls, x_of_theta
 
 __all__: T.List[str] = ["SCFSampler", "SCFRSampler", "SCFThetaSampler", "SCFPhiSampler"]
 
@@ -218,7 +218,7 @@ class SCFThetaSampler(SCFThetaSamplerBase):
 
 class SCFThetaSampler_of_r(SCFThetaSamplerBase):
     def _cdf(self, theta: NDArray64, *args: T.Any, r: float) -> NDArray64:
-        x = _x_of_theta(theta)
+        x = x_of_theta(theta)
         Qlsatr = self.Qls(r)
 
         # l = 0
