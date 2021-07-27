@@ -170,7 +170,8 @@ def _(theta: u.Quantity) -> NDArray64:
 
 
 def theta_of_x(
-    x: npt.ArrayLike, unit: T.Optional[u.UnitBase] = None
+    x: npt.ArrayLike,
+    unit: T.Optional[u.UnitBase] = None,
 ) -> T.Union[NDArray64, u.Quantity]:
     r""":math:`\theta = \cos^{-1}{x}`.
 

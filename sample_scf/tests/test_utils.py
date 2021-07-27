@@ -14,9 +14,10 @@ import astropy.units as u
 import numpy as np
 import pytest
 from galpy.potential import SCFPotential
+from numpy.testing import assert_allclose
 
 # LOCAL
-from sample_scf.utils import _x_of_theta, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
+from sample_scf.utils import phiRSms, r_of_zeta, theta_of_x, thetaQls, x_of_theta, zeta_of_r
 
 ##############################################################################
 # TESTS
@@ -44,7 +45,7 @@ class Test_zeta_of_r:
     def test_scalar_input(self, r, expected, warns):
         """Test when input scalar."""
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
-            assert np.allclose(zeta_of_r(r), expected)
+            assert_allclose(zeta_of_r(r), expected)
 
     # /def
 
@@ -58,14 +59,14 @@ class Test_zeta_of_r:
     def test_array_input(self, r, expected):
         """Test when input array."""
         with pytest.warns(RuntimeWarning):
-            assert np.allclose(zeta_of_r(r), expected)
+            assert_allclose(zeta_of_r(r), expected)
 
     # /def
 
     @pytest.mark.parametrize("r", [0, 1, np.inf, [0, 1, np.inf]])
     def test_roundtrip(self, r):
         """Test zeta and r round trip. Note that Quantities don't round trip."""
-        assert np.allclose(r_of_zeta(zeta_of_r(r)), r)
+        assert_allclose(r_of_zeta(zeta_of_r(r)), r)
 
     # /def
 
@@ -97,7 +98,7 @@ class Test_r_of_zeta:
     def test_scalar_input(self, zeta, expected, warns):
         """Test when input scalar."""
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
-            assert np.allclose(r_of_zeta(zeta), expected)
+            assert_allclose(r_of_zeta(zeta), expected)
 
     # /def
 
@@ -110,7 +111,7 @@ class Test_r_of_zeta:
     def test_array_input(self, zeta, expected, warns):
         """Test when input array."""
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
-            assert np.allclose(r_of_zeta(zeta), expected)
+            assert_allclose(r_of_zeta(zeta), expected)
 
     # /def
 
@@ -124,14 +125,14 @@ class Test_r_of_zeta:
     )
     def test_unit_input(self, zeta, expected, unit):
         """Test when input units."""
-        assert np.allclose(r_of_zeta(zeta, unit=unit), expected)
+        assert_allclose(r_of_zeta(zeta, unit=unit), expected)
 
     # /def
 
     @pytest.mark.parametrize("zeta", [-1, 0, 1, [-1, 0, 1]])
     def test_roundtrip(self, zeta):
         """Test zeta and r round trip. Note that Quantities don't round trip."""
-        assert np.allclose(zeta_of_r(r_of_zeta(zeta)), zeta)
+        assert_allclose(zeta_of_r(r_of_zeta(zeta)), zeta)
 
     # /def
 
@@ -147,24 +148,73 @@ class Test_x_of_theta:
 
     @pytest.mark.parametrize(
         "theta, expected",
-        [(-np.pi / 2, -1), (0, 0), (np.pi / 2, 1), ([-np.pi / 2, 0, np.pi / 2], [-1, 0, 1])],
+        [
+            (-np.pi / 2, -1),
+            (0, 0),
+            (np.pi / 2, 1),
+            ([-np.pi / 2, 0, np.pi / 2], [-1, 0, 1]),  # array
+            # with units
+            (-np.pi / 2 << u.rad, -1),
+            (0 << u.deg, 0),
+            (np.pi / 2 << u.rad, 1),
+            ([-np.pi / 2, 0, np.pi / 2] << u.rad, [-1, 0, 1]),  # array
+        ],
     )
-    def test__x_of_theta(self, theta, expected):
-        assert np.allclose(_x_of_theta(theta), expected)
+    def test_x_of_theta(self, theta, expected):
+        assert_allclose(x_of_theta(theta), expected, atol=1e-16)
 
     # /def
 
-    @pytest.mark.parametrize(
-        "theta, expected",
-        [(-np.pi / 2, -1), (0, 0), (np.pi / 2, 1), ([-np.pi / 2, 0, np.pi / 2], [-1, 0, 1])],
-    )
-    def test_x_of_theta(self, theta, expected):
-        assert np.allclose(x_of_theta(theta << u.rad), expected)
+    @pytest.mark.parametrize("theta", [-np.pi / 2, 0, np.pi / 2, [-np.pi / 2, 0, np.pi / 2]])
+    def test_roundtrip(self, theta):
+        """Test theta and x round trip. Note that Quantities don't round trip."""
+        assert_allclose(theta_of_x(x_of_theta(theta << u.rad)), theta)
 
     # /def
 
 
 # /class
+
+# -------------------------------------------------------------------
+
+
+class Test_theta_of_x:
+    """Test `sample_scf.utils.theta_of_x`."""
+
+    @pytest.mark.parametrize(
+        "x, expected",
+        [
+            (-1, -np.pi / 2),
+            (0, 0),
+            (1, np.pi / 2),
+            ([-1, 0, 1], [-np.pi / 2, 0, np.pi / 2]),  # array
+        ],
+    )
+    def test_theta_of_x(self, x, expected):
+        assert_allclose(theta_of_x(x), expected)
+
+    # /def
+
+    @pytest.mark.parametrize(
+        "x, expected, unit",
+        [
+            (-1, -np.pi / 2, None),
+            (0, 0 * u.deg, u.deg),
+            (1, np.pi / 2 * u.rad, u.rad),
+        ],
+    )
+    def test_unit_input(self, x, expected, unit):
+        """Test when input units."""
+        assert_allclose(theta_of_x(x, unit=unit), expected)
+
+    # /def
+
+    @pytest.mark.parametrize("x", [-1, 0, 1, [-1, 0, 1]])
+    def test_roundtrip(self, x):
+        """Test x and theta round trip. Note that Quantities don't round trip."""
+        assert_allclose(x_of_theta(theta_of_x(x)), x, atol=1e-16)
+
+    # /def
 
 
 # -------------------------------------------------------------------
@@ -173,30 +223,22 @@ class Test_x_of_theta:
 class Test_thetaQls:
     """Test `sample_scf.utils.x_of_theta`."""
 
-    def setup_class(self):
-        """Set up class."""
-        Acos = np.zeros((5, 6, 6))
-
-        Acos_hern = Acos.copy()
-        Acos_hern[0, 0, 0] = 1
-        self.hernquist_pot = SCFPotential(Acos=Acos_hern)
-
-    # /def
-
     # ===============================================================
     # Usage Tests
 
     @pytest.mark.parametrize("r, expected", [(0, 1), (1, 0.01989437), (np.inf, 0)])
-    def test_hernquist(self, r, expected):
-        Qls = thetaQls(self.hernquist_pot, r=r)
+    def test_hernquist(self, hernquist_scf_potential, r, expected):
+        Qls = thetaQls(hernquist_scf_potential, r=r)
+        # shape should be L (see setup_class)
         assert len(Qls) == 6
+        # only 1st index is non-zero
         assert np.isclose(Qls[0], expected)
-        assert np.allclose(Qls[1:], 0)
+        assert_allclose(Qls[1:], 0)
 
     # /def
 
     @pytest.mark.skip("TODO!")
-    def test_triaxialnfw(self):
+    def test_nfw(self, nfw_scf_potential):
         assert False
 
     # /def
@@ -210,15 +252,38 @@ class Test_thetaQls:
 class Test_phiRSms:
     """Test `sample_scf.utils.x_of_theta`."""
 
-    @pytest.mark.skip("TODO!")
-    def test__phiRSms(self):
-        assert False
+    # ===============================================================
+    # Tests
 
-    # /def
+    # @pytest.mark.skip("TODO!")
+    @pytest.mark.parametrize(
+        "r, theta, expected",
+        [
+            # show it doesn't depend on theta
+            (0, -np.pi / 2, (np.zeros(5), np.zeros(5))),
+            (0, 0, (np.zeros(5), np.zeros(5))),  # special case when x=0 is 0
+            (0, np.pi / 6, (np.zeros(5), np.zeros(5))),
+            (0, np.pi / 2, (np.zeros(5), np.zeros(5))),
+            # nor on r
+            (1, -np.pi / 2, (np.zeros(5), np.zeros(5))),
+            (10, -np.pi / 4, (np.zeros(5), np.zeros(5))),
+            (100, np.pi / 6, (np.zeros(5), np.zeros(5))),
+            (1000, np.pi / 2, (np.zeros(5), np.zeros(5))),
+            # Legendre[n=0, l=0, z=z] = 1 is a special case
+            (1, 0, (np.zeros(5), np.zeros(5))),
+            (10, 0, (np.zeros(5), np.zeros(5))),
+            (100, 0, (np.zeros(5), np.zeros(5))),
+            (1000, 0, (np.zeros(5), np.zeros(5))),
+        ],
+    )
+    def test_phiRSms_hernquist(self, hernquist_scf_potential, r, theta, expected):
+        Rm, Sm = phiRSms(hernquist_scf_potential, r, theta)
+        assert_allclose(Rm[1:], expected[0], atol=1e-16)
+        assert_allclose(Sm[1:], expected[1], atol=1e-16)
 
-    @pytest.mark.skip("TODO!")
-    def test_phiRSms(self):
-        assert False
+        if theta == 0 and r != 0:
+            assert Rm[0] != 0
+            assert Sm[0] == 0
 
     # /def
 

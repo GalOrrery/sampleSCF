@@ -14,7 +14,9 @@ packagename.test
 import os
 
 # THIRD PARTY
-from astropy.version import version as astropy_version  # noqa: F401
+import numpy as np
+import pytest
+from galpy.potential import SCFPotential
 
 try:
     # THIRD PARTY
@@ -23,6 +25,9 @@ try:
     ASTROPY_HEADER = True
 except ImportError:
     ASTROPY_HEADER = False
+
+# ============================================================================
+# Configuration
 
 
 def pytest_configure(config):
@@ -49,6 +54,9 @@ def pytest_configure(config):
         TESTED_VERSIONS[packagename] = __version__
 
 
+# /def
+
+
 # Uncomment the last two lines in this block to treat all DeprecationWarnings as
 # exceptions. For Astropy v2.0 or later, there are 2 additional keywords,
 # as follow (although default should work for most cases).
@@ -61,3 +69,31 @@ def pytest_configure(config):
 #     warnings_to_ignore_by_pyver={(MAJOR, MINOR): ['Message to ignore']}
 # from astropy.tests.helper import enable_deprecations_as_exceptions  # noqa: F401
 # enable_deprecations_as_exceptions()
+
+
+# ============================================================================
+# Fixtures
+
+
+@pytest.fixture(scope="session")
+def hernquist_scf_potential():
+    """Make a SCF of a Hernquist potential."""
+    Acos = np.zeros((5, 6, 6))
+
+    Acos_hern = Acos.copy()
+    Acos_hern[0, 0, 0] = 1
+
+    hernpot = SCFPotential(Acos=Acos_hern)
+    return hernpot
+
+
+# /def
+
+
+@pytest.fixture(scope="session")
+def nfw_scf_potential():
+    """Make a SCF of a triaxial NFW potential."""
+    raise NotImplementedError("TODO")
+
+
+# /def
