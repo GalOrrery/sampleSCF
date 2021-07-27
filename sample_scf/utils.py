@@ -21,19 +21,7 @@ import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 from galpy.potential import SCFPotential
-from numpy import (
-    arange,
-    arccos,
-    array,
-    atleast_1d,
-    cos,
-    divide,
-    nan_to_num,
-    pi,
-    sqrt,
-    stack,
-    sum,
-)
+from numpy import arange, arccos, array, atleast_1d, cos, divide, nan_to_num, pi, sqrt, stack, sum
 from scipy.special import legendre, lpmn
 
 # LOCAL
