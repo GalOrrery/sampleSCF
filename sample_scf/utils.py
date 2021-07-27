@@ -25,7 +25,6 @@ from numpy import (
     arange,
     arccos,
     array,
-    asanyarray,
     atleast_1d,
     cos,
     divide,
@@ -162,7 +161,7 @@ def _(theta: u.Quantity) -> NDArray64:
     -------
     x : float or ndarray
     """
-    x = NDArray64 = cos(pi / 2 - theta.to_value(u.rad))
+    x: NDArray64 = cos(pi / 2 - theta.to_value(u.rad))
     return x
 
 

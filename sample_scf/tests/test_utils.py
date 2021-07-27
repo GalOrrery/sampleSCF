@@ -13,7 +13,6 @@ import contextlib
 import astropy.units as u
 import numpy as np
 import pytest
-from galpy.potential import SCFPotential
 from numpy.testing import assert_allclose
 
 # LOCAL
