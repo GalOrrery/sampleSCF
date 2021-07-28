@@ -19,6 +19,7 @@ import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 from astropy.coordinates import PhysicsSphericalRepresentation
+from galpy.potential import SCFPotential
 from scipy._lib._util import check_random_state
 from scipy.stats import rv_continuous
 
@@ -102,6 +103,14 @@ class SCFSamplerBase:
     pot : `galpy.potential.SCFPotential`
     """
 
+    def __init__(
+        self,
+        pot: SCFPotential,
+    ):
+        self._pot = pot
+
+    # /def
+
     _rsampler: rv_continuous_modrvs
     _thetasampler: rv_continuous_modrvs
     _phisampler: rv_continuous_modrvs
@@ -147,7 +156,7 @@ class SCFSamplerBase:
         (N, 3) ndarray
         """
         R: NDArray64 = self.rsampler.cdf(r)
-        Theta: NDArray64 = self.thetasampler.cdf(theta=theta, r=r)
+        Theta: NDArray64 = self.thetasampler.cdf(theta, r=r)
         Phi: NDArray64 = self.phisampler.cdf(phi, r=r, theta=theta)
 
         RTP: NDArray64 = np.c_[R, Theta, Phi]

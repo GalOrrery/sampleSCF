@@ -7,15 +7,22 @@
 # IMPORTS
 
 # THIRD PARTY
-# import astropy.units as u
-# import numpy as np
+import astropy.coordinates as coord
+import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 
 # LOCAL
-from .test_base import Test_rv_continuous_modrvs, Test_SCFSamplerBase
+from .test_base import SCFSamplerTestBase
+from .test_base import Test_RVContinuousModRVS as RVContinuousModRVSTest
 from sample_scf import sample_intrp
 
-# from galpy.potential import SCFPotential
+##############################################################################
+# PARAMETERS
+
+rgrid = np.geomspace(1e-1, 1e3, 100)
+tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
+pgrid = np.linspace(0, 2 * np.pi, 30)
 
 
 ##############################################################################
@@ -23,11 +30,35 @@ from sample_scf import sample_intrp
 ##############################################################################
 
 
-@pytest.mark.skip("TODO!")
-class Test_SCFSampler(Test_SCFSamplerBase):
+class Test_SCFSampler(SCFSamplerTestBase):
     """Test :class:`sample_scf.sample_intrp.SCFSampler`."""
 
-    _cls = sample_intrp.SCFSampler
+    def setup_class(self):
+        super().setup_class(self)
+
+        self.cls = sample_intrp.SCFSampler
+        self.cls_args = (rgrid, tgrid, pgrid)
+
+    # /def
+
+    @pytest.mark.skip("TODO!")
+    def test_cdf(self, sampler, r, theta, phi, expected):
+        """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
+        assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
+
+    # /def
+
+    @pytest.mark.skip("TODO!")
+    def test_rvs(self, sampler, id, size, random):
+        """Test :meth:`sample_scf.base.SCFSamplerBase.rvs`."""
+        samples = sampler.rvs(size=size, random_state=random)
+        sce = coord.PhysicsSphericalRepresentation(**self.expected_rvs[id])
+
+        assert_allclose(samples.r, sce.r, atol=1e-16)
+        assert_allclose(samples.theta.value, sce.theta.value, atol=1e-16)
+        assert_allclose(samples.phi.value, sce.phi.value, atol=1e-16)
+
+    # /def
 
 
 # /class
@@ -35,7 +66,7 @@ class Test_SCFSampler(Test_SCFSamplerBase):
 # -------------------------------------------------------------------
 
 
-class Test_SCFRSampler(Test_rv_continuous_modrvs):
+class Test_SCFRSampler(RVContinuousModRVSTest):
     """Test :class:`sample_scf.`"""
 
     # ===============================================================
@@ -62,6 +93,13 @@ class Test_SCFRSampler(Test_rv_continuous_modrvs):
 
     # /def
 
+    @pytest.mark.skip("TODO!")
+    def test_rvs(self):
+        """Test :meth:`sample_scf.sample_intrp.SCFRSampler.rvs`."""
+        assert False
+
+    # /def
+
     # ===============================================================
     # Usage Tests
 
@@ -71,7 +109,7 @@ class Test_SCFRSampler(Test_rv_continuous_modrvs):
 # -------------------------------------------------------------------
 
 
-class Test_SCFThetaSampler(Test_rv_continuous_modrvs):
+class Test_SCFThetaSampler(RVContinuousModRVSTest):
     """Test :class:`sample_scf.sample_intrp.SCFThetaSampler`."""
 
     # ===============================================================
@@ -128,7 +166,7 @@ class Test_SCFThetaSampler(Test_rv_continuous_modrvs):
 # -------------------------------------------------------------------
 
 
-class Test_SCFPhiSampler(Test_rv_continuous_modrvs):
+class Test_SCFPhiSampler(RVContinuousModRVSTest):
     """Test :class:`sample_scf.sample_intrp.SCFPhiSampler`."""
 
     # ===============================================================

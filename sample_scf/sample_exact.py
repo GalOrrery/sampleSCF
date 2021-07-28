@@ -19,7 +19,6 @@ import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 from galpy.potential import SCFPotential
-from scipy.stats import rv_continuous
 
 # LOCAL
 from ._typing import NDArray64, RandomLike
@@ -72,7 +71,7 @@ class SCFSampler(SCFSamplerBase):
 # radial sampler
 
 
-class SCFRSampler(rv_continuous):
+class SCFRSampler(rv_continuous_modrvs):
     """Sample radial coordinate from an SCF potential.
 
     Parameters

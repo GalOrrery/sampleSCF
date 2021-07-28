@@ -75,7 +75,7 @@ def pytest_configure(config):
 # Fixtures
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True, scope="session")
 def hernquist_scf_potential():
     """Make a SCF of a Hernquist potential."""
     Acos = np.zeros((5, 6, 6))
@@ -90,10 +90,27 @@ def hernquist_scf_potential():
 # /def
 
 
-@pytest.fixture(scope="session")
-def nfw_scf_potential():
-    """Make a SCF of a triaxial NFW potential."""
-    raise NotImplementedError("TODO")
+# @pytest.fixture(autouse=True, scope="session")
+# def nfw_scf_potential():
+#     """Make a SCF of a triaxial NFW potential."""
+#     raise NotImplementedError("TODO")
+#
+#
+# # /def
 
 
-# /def
+@pytest.fixture(
+    # autouse=True,
+    scope="session",
+    params=[
+        "hernquist_scf_potential",  # TODO! use hernquist_scf_potential
+    ],
+)
+def potentials(request):
+    if request.param == "hernquist_scf_potential":
+        Acos = np.zeros((5, 6, 6))
+        Acos_hern = Acos.copy()
+        Acos_hern[0, 0, 0] = 1
+        potential = SCFPotential(Acos=Acos_hern)
+
+    yield potential

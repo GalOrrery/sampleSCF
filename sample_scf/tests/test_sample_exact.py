@@ -28,7 +28,8 @@ from galpy.potential import HernquistPotential, SCFPotential
 # from sample_scf.sample_exact import SCFPhiSampler, SCFRSampler, SCFSampler, SCFThetaSampler
 from sample_scf.utils import zeta_of_r  # x_of_theta
 
-# import time
+# from .test_base import SCFSamplerTestBase
+# from sample_scf import sample_exact
 
 
 ##############################################################################
@@ -58,6 +59,21 @@ phi = np.linspace(0, 2 * np.pi, 30)
 ##############################################################################
 # CODE
 ##############################################################################
+
+
+# class Test_SCFSampler(SCFSamplerTestBase):
+#     """Test :class:`sample_scf.sample_intrp.SCFSampler`."""
+#
+#     def setup_class(self):
+#         super().setup_class()
+#
+#         self.cls = sample_exact.SCFSampler
+#         self.cls_args = ()
+#
+#     # /def
+#
+#
+# # /class
 
 
 # class Test_SCFRSampler:

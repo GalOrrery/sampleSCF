@@ -19,9 +19,21 @@ from collections.abc import Mapping
 from galpy.potential import SCFPotential
 
 # LOCAL
-from .base import SCFSamplerBase
+from .base import SCFSamplerBase, rv_continuous_modrvs
+from .sample_exact import SCFSampler as SCFSamplerExact
+from .sample_intrp import SCFSampler as SCFSamplerIntrp
 
 __all__: T.List[str] = ["SCFSampler"]
+
+
+##############################################################################
+# Parameters
+
+
+class MethodsMapping(T.TypedDict):
+    r: rv_continuous_modrvs
+    theta: rv_continuous_modrvs
+    phi: rv_continuous_modrvs
 
 
 ##############################################################################
@@ -85,15 +97,32 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
     def __init__(
         self,
         pot: SCFPotential,
-        method: T.Union[T.Literal["interp", "exact"], T.Mapping],
+        method: T.Union[T.Literal["interp", "exact"], MethodsMapping],
         **kwargs: T.Any
     ) -> None:
-        if not isinstance(method, Mapping):
-            raise NotImplementedError
+        super().__init__(pot)
 
-        self._rsampler = method["r"](pot, **kwargs)
-        self._thetasampler = method["theta"](pot, **kwargs)
-        self._phisampler = method["phi"](pot, **kwargs)
+        if isinstance(method, Mapping):
+            sampler = None
+            rsampler = method["r"](pot, **kwargs)
+            thetasampler = method["theta"](pot, **kwargs)
+            phisampler = method["phi"](pot, **kwargs)
+        else:
+            sampler_cls: rv_continuous_modrvs
+            if method == "interp":
+                sampler_cls = SCFSamplerIntrp
+            elif method == "exact":
+                sampler_cls = SCFSamplerExact
+
+            sampler = sampler_cls(pot, **kwargs)
+            rsampler = self._sampler._rsampler
+            thetasampler = self._sampler._thetasampler
+            phisampler = self._sampler._phisampler
+
+        self._sampler: T.Optional[SCFSamplerBase] = sampler
+        self._rsampler = rsampler
+        self._thetasampler = thetasampler
+        self._phisampler = phisampler
 
     # /def
 

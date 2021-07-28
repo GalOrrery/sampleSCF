@@ -270,7 +270,7 @@ class SCFThetaSampler(rv_continuous_modrvs):
             raise ValueError(f"Qls must be shape ({len(rgrid)}, {lmax})")
 
         # l = 0 : spherical symmetry
-        term0 = T.cast(npt.NDArray, 0.5 * (xs + 1))  # (T,)
+        term0 = T.cast(NDArray64, 0.5 * (xs + 1))  # (T,)
         # l = 1+ : non-symmetry
         factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
         term1p = np.sum(
