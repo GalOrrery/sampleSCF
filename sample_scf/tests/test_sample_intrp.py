@@ -349,7 +349,7 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
         self.cls_args = (rgrid, tgrid, pgrid)
 
         self.cdf_time_scale = 12e-4
-        self.rvs_time_scale = 10e-4
+        self.rvs_time_scale = 12e-4
 
     # /def
 
