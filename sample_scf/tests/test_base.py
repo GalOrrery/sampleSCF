@@ -54,8 +54,8 @@ class Test_RVPotential:
         self.cls = rvtestsampler
         self.cls_args = ()
 
-        self.cdf_time_scale = 0
-        self.rvs_time_scale = 0
+        self.cdf_time_scale = 3e-6
+        self.rvs_time_scale = 1e-4
 
     # /def
 
@@ -152,9 +152,9 @@ class Test_SCFSamplerBase:
     def sampler(self, potentials):
         """Set up r, theta, & phi sampler."""
         sampler = self.cls(potentials, *self.cls_args)
-        sampler._rsampler = rvtestsampler()
-        sampler._thetasampler = rvtestsampler()
-        sampler._phisampler = rvtestsampler()
+        sampler._rsampler = rvtestsampler(potentials)
+        sampler._thetasampler = rvtestsampler(potentials)
+        sampler._phisampler = rvtestsampler(potentials)
 
         return sampler
 

@@ -10,6 +10,7 @@
 import time
 
 # THIRD PARTY
+import astropy.units as u
 import astropy.coordinates as coord
 import numpy as np
 import pytest
@@ -19,7 +20,7 @@ from numpy.testing import assert_allclose
 from .test_base import SCFSamplerTestBase
 from .test_base import Test_RVPotential as RVPotentialTest
 from sample_scf import sample_intrp
-from sample_scf.utils import r_of_zeta, zeta_of_r
+from sample_scf.utils import r_of_zeta, zeta_of_r, x_of_theta
 
 ##############################################################################
 # PARAMETERS
@@ -265,10 +266,21 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
 
     # /def
 
-    @pytest.mark.skip("TODO!")
-    def test_cdf(self):
+    @pytest.mark.parametrize(
+        "theta, r",
+        [
+            *zip(
+                np.random.default_rng(0).uniform(-np.pi / 2, np.pi / 2, 10),
+                np.random.default_rng(1).uniform(0, 1e4, 10),
+            ),
+        ],
+    )
+    def test_cdf(self, sampler, theta, r):
         """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler.cdf`."""
-        assert False
+        assert_allclose(
+            sampler.cdf(theta, r),
+            sampler._spl_cdf(zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
+        )
 
     # /def
 
