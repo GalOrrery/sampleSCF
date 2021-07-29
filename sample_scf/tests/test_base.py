@@ -11,6 +11,7 @@ import astropy.coordinates as coord
 import astropy.units as u
 import numpy as np
 import pytest
+from astropy.utils.misc import NumpyRNGContext
 from numpy.testing import assert_allclose
 
 # LOCAL
@@ -57,11 +58,17 @@ class Test_RVContinuousModRVS:
             (None, 0, 0.5488135039273248),
             (1, 2, 0.43599490214200376),
             ((3, 1), 4, (0.9670298390136767, 0.5472322491757223, 0.9726843599648843)),
+            ((3, 1), None, (0.9670298390136767, 0.5472322491757223, 0.9726843599648843)),
         ],
     )
     def test_rvs(self, size, random, expected):
-        """Test :meth:`sample_scf.base.rv_continuous_modrvs.rvs`."""
-        assert_allclose(self.sampler.rvs(size=size, random_state=random), expected, atol=1e-16)
+        """Test :meth:`sample_scf.base.rv_continuous_modrvs.rvs`.
+
+        The ``NumpyRNGContext`` is to control the random generator used to make
+        the RandomState. For ``random != None``, this doesn't matter.
+        """
+        with NumpyRNGContext(4):
+            assert_allclose(self.sampler.rvs(size=size, random_state=random), expected, atol=1e-16)
 
     # /def
 
@@ -155,6 +162,12 @@ class Test_SCFSamplerBase:
         assert_allclose(samples.phi.value, sce.phi.value, atol=1e-16)
 
     # /def
+
+    # ===============================================================
+    # Time Scaling Tests
+
+    # ===============================================================
+    # Image tests
 
 
 # /class
