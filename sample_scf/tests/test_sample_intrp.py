@@ -10,8 +10,8 @@
 import time
 
 # THIRD PARTY
-import astropy.units as u
 import astropy.coordinates as coord
+import astropy.units as u
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -20,7 +20,7 @@ from numpy.testing import assert_allclose
 from .test_base import SCFSamplerTestBase
 from .test_base import Test_RVPotential as RVPotentialTest
 from sample_scf import sample_intrp
-from sample_scf.utils import r_of_zeta, zeta_of_r, x_of_theta
+from sample_scf.utils import r_of_zeta, x_of_theta, zeta_of_r
 
 ##############################################################################
 # PARAMETERS
@@ -43,6 +43,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
 
         self.cls = sample_intrp.SCFSampler
         self.cls_args = (rgrid, tgrid, pgrid)
+        self.cls_kwargs = {}
 
     # /def
 

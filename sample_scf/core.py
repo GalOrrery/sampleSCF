@@ -115,9 +115,9 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
                 sampler_cls = SCFSamplerExact
 
             sampler = sampler_cls(pot, **kwargs)
-            rsampler = self._sampler._rsampler
-            thetasampler = self._sampler._thetasampler
-            phisampler = self._sampler._phisampler
+            rsampler = sampler.rsampler
+            thetasampler = sampler.thetasampler
+            phisampler = sampler.phisampler
 
         self._sampler: T.Optional[SCFSamplerBase] = sampler
         self._rsampler = rsampler

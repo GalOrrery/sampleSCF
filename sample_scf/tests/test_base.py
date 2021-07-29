@@ -135,6 +135,7 @@ class Test_SCFSamplerBase:
     def setup_class(self):
         self.cls = base.SCFSamplerBase
         self.cls_args = ()
+        self.cls_kwargs = {}
 
         self.expected_rvs = {
             0: dict(r=0.548813503927, theta=1.021982822867 * u.rad, phi=0.548813503927 * u.rad),
@@ -151,7 +152,7 @@ class Test_SCFSamplerBase:
     @pytest.fixture(autouse=True, scope="class")
     def sampler(self, potentials):
         """Set up r, theta, & phi sampler."""
-        sampler = self.cls(potentials, *self.cls_args)
+        sampler = self.cls(potentials, *self.cls_args, **self.cls_kwargs)
         sampler._rsampler = rvtestsampler(potentials)
         sampler._thetasampler = rvtestsampler(potentials)
         sampler._phisampler = rvtestsampler(potentials)
