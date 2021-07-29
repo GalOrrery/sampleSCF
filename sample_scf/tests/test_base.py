@@ -6,6 +6,9 @@
 ##############################################################################
 # IMPORTS
 
+# BUILT-IN
+import time
+
 # THIRD PARTY
 import astropy.coordinates as coord
 import astropy.units as u
@@ -22,7 +25,9 @@ from sample_scf import base
 ##############################################################################
 
 
-class testrvsampler(base.rv_continuous_modrvs):
+class rvtestsampler(base.rv_potential):
+    """A sampler for testing the modified ``rv_continuous`` base class."""
+
     def _cdf(self, x, *args, **kwargs):
         return x
 
@@ -42,15 +47,29 @@ class testrvsampler(base.rv_continuous_modrvs):
 # /class
 
 
-class Test_RVContinuousModRVS:
-    """Test `sample_scf.base.rv_continuous_modrvs`."""
+class Test_RVPotential:
+    """Test `sample_scf.base.rv_potential`."""
 
     def setup_class(self):
-        self.sampler = testrvsampler()
+        self.cls = rvtestsampler
+        self.cls_args = ()
+
+        self.cdf_time_scale = 0
+        self.rvs_time_scale = 0
+
+    # /def
+
+    @pytest.fixture(autouse=True, scope="class")
+    def sampler(self, potentials):
+        """Set up r, theta, or phi sampler."""
+        sampler = self.cls(potentials, *self.cls_args)
+
+        return sampler
 
     # /def
 
     # ===============================================================
+    # Method Tests
 
     @pytest.mark.parametrize(
         "size, random, expected",
@@ -61,22 +80,53 @@ class Test_RVContinuousModRVS:
             ((3, 1), None, (0.9670298390136767, 0.5472322491757223, 0.9726843599648843)),
         ],
     )
-    def test_rvs(self, size, random, expected):
-        """Test :meth:`sample_scf.base.rv_continuous_modrvs.rvs`.
+    def test_rvs(self, sampler, size, random, expected):
+        """Test :meth:`sample_scf.base.rv_potential.rvs`.
 
         The ``NumpyRNGContext`` is to control the random generator used to make
         the RandomState. For ``random != None``, this doesn't matter.
         """
         with NumpyRNGContext(4):
-            assert_allclose(self.sampler.rvs(size=size, random_state=random), expected, atol=1e-16)
+            assert_allclose(sampler.rvs(size=size, random_state=random), expected, atol=1e-16)
 
     # /def
+
+    # ===============================================================
+    # Time Scaling Tests
+
+    # TODO! generalize for subclasses
+    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
+    def test_cdf_time_scaling(self, sampler, size):
+        """Test that the time scales as X * size"""
+        x = np.linspace(0, 1e4, size)
+        tic = time.perf_counter()
+        sampler.cdf(x)
+        toc = time.perf_counter()
+
+        assert (toc - tic) < self.cdf_time_scale * size  # linear scaling
+
+    # /def
+
+    # TODO! generalize for subclasses
+    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
+    def test_rvs_time_scaling(self, sampler, size):
+        """Test that the time scales as X * size"""
+        tic = time.perf_counter()
+        sampler.rvs(size=size)
+        toc = time.perf_counter()
+
+        assert (toc - tic) < self.rvs_time_scale * size  # linear scaling
+
+    # /def
+
+    # ===============================================================
+    # Image tests
 
 
 # /class
 
 
-# -------------------------------------------------------------------
+##############################################################################
 
 
 class Test_SCFSamplerBase:
@@ -100,11 +150,11 @@ class Test_SCFSamplerBase:
 
     @pytest.fixture(autouse=True, scope="class")
     def sampler(self, potentials):
-        """Set up r, theta, phi sampler."""
+        """Set up r, theta, & phi sampler."""
         sampler = self.cls(potentials, *self.cls_args)
-        sampler._rsampler = testrvsampler()
-        sampler._thetasampler = testrvsampler()
-        sampler._phisampler = testrvsampler()
+        sampler._rsampler = rvtestsampler()
+        sampler._thetasampler = rvtestsampler()
+        sampler._phisampler = rvtestsampler()
 
         return sampler
 
@@ -114,19 +164,19 @@ class Test_SCFSamplerBase:
 
     def test_rsampler(self, sampler):
         """Test :meth:`sample_scf.base.SCFSamplerBase.rsampler`."""
-        assert isinstance(sampler.rsampler, base.rv_continuous_modrvs)
+        assert isinstance(sampler.rsampler, base.rv_potential)
 
     # /def
 
     def test_thetasampler(self, sampler):
         """Test :meth:`sample_scf.base.SCFSamplerBase.thetasampler`."""
-        assert isinstance(sampler.thetasampler, base.rv_continuous_modrvs)
+        assert isinstance(sampler.thetasampler, base.rv_potential)
 
     # /def
 
     def test_phisampler(self, sampler):
         """Test :meth:`sample_scf.base.SCFSamplerBase.phisampler`."""
-        assert isinstance(sampler.phisampler, base.rv_continuous_modrvs)
+        assert isinstance(sampler.phisampler, base.rv_potential)
 
     # /def
 

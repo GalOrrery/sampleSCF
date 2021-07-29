@@ -34,18 +34,54 @@ __all__: T.List[str] = []
 ##############################################################################
 
 
-class rv_continuous_modrvs(rv_continuous):
+class rv_potential(rv_continuous):
     """
     Modified :class:`scipy.stats.rv_continuous` to use custom rvs methods.
     Made by stripping down the original scipy implementation.
     See :class:`scipy.stats.rv_continuous` for details.
     """
 
+    def __init__(
+        self,
+        potential: SCFPotential,
+        momtype: int = 1,
+        a: float = None,
+        b: float = None,
+        xtol: float = 1e-14,
+        badvalue: T.Optional[float] = None,
+        name: str = None,
+        longname: str = None,
+        shapes: tuple = None,
+        extradoc: str = None,
+        seed: int = None,
+    ):
+        super().__init__(
+            momtype=momtype,
+            a=a,
+            b=b,
+            xtol=xtol,
+            badvalue=badvalue,
+            name=name,
+            longname=longname,
+            shapes=shapes,
+            extradoc=extradoc,
+            seed=seed,
+        )
+
+        if not isinstance(potential, SCFPotential):
+            raise TypeError(
+                f"potential must be <galpy.potential.SCFPotential>, not {type(potential)}",
+            )
+        self._potential: SCFPotential = potential
+        self._nmax, self._lmax = potential._Acos.shape[:2]
+
+    # /def
+
     def rvs(
         self,
         *args: T.Union[float, npt.ArrayLike],
         size: T.Optional[int] = None,
-        random_state: RandomLike = None
+        random_state: RandomLike = None,
     ) -> NDArray64:
         """Random variate sampler.
 
@@ -111,26 +147,26 @@ class SCFSamplerBase:
 
     # /def
 
-    _rsampler: rv_continuous_modrvs
-    _thetasampler: rv_continuous_modrvs
-    _phisampler: rv_continuous_modrvs
+    _rsampler: rv_potential
+    _thetasampler: rv_potential
+    _phisampler: rv_potential
 
     @property
-    def rsampler(self) -> rv_continuous_modrvs:
+    def rsampler(self) -> rv_potential:
         """Radial coordinate sampler."""
         return self._rsampler
 
     # /def
 
     @property
-    def thetasampler(self) -> rv_continuous_modrvs:
+    def thetasampler(self) -> rv_potential:
         """Inclination coordinate sampler."""
         return self._thetasampler
 
     # /def
 
     @property
-    def phisampler(self) -> rv_continuous_modrvs:
+    def phisampler(self) -> rv_potential:
         """Azimuthal coordinate sampler."""
         return self._phisampler
 

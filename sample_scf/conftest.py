@@ -104,10 +104,11 @@ def hernquist_scf_potential():
     scope="session",
     params=[
         "hernquist_scf_potential",  # TODO! use hernquist_scf_potential
+        "other_hernquist_scf_potential",
     ],
 )
 def potentials(request):
-    if request.param == "hernquist_scf_potential":
+    if request.param in ("hernquist_scf_potential", "other_hernquist_scf_potential"):
         Acos = np.zeros((5, 6, 6))
         Acos_hern = Acos.copy()
         Acos_hern[0, 0, 0] = 1

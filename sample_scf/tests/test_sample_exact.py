@@ -76,6 +76,9 @@ phi = np.linspace(0, 2 * np.pi, 30)
 # # /class
 
 
+# ============================================================================
+
+
 # class Test_SCFRSampler:
 #     def setup_class(self):
 #         self.sampler = SCFRSampler(m, r)

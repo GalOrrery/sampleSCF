@@ -22,7 +22,7 @@ from galpy.potential import SCFPotential
 
 # LOCAL
 from ._typing import NDArray64, RandomLike
-from .base import SCFSamplerBase, rv_continuous_modrvs
+from .base import SCFSamplerBase, rv_potential
 from .utils import difPls, phiRSms, thetaQls, x_of_theta
 
 __all__: T.List[str] = ["SCFSampler", "SCFRSampler", "SCFThetaSampler", "SCFPhiSampler"]
@@ -71,7 +71,7 @@ class SCFSampler(SCFSamplerBase):
 # radial sampler
 
 
-class SCFRSampler(rv_continuous_modrvs):
+class SCFRSampler(rv_potential):
     """Sample radial coordinate from an SCF potential.
 
     Parameters
@@ -82,9 +82,9 @@ class SCFRSampler(rv_continuous_modrvs):
         Not used.
     """
 
-    def __init__(self, pot: SCFPotential, **kw: T.Any) -> None:
-        super().__init__(a=0, b=np.inf)  # allowed range of r
-        self._pot = pot
+    def __init__(self, potential: SCFPotential, **kw: T.Any) -> None:
+        kw["a"], kw["b"] = 0, np.inf  # allowed range of r
+        super().__init__(potential, **kw)
 
     # /def
 
@@ -103,10 +103,10 @@ class SCFRSampler(rv_continuous_modrvs):
 # inclination sampler
 
 
-class SCFThetaSamplerBase(rv_continuous_modrvs):
+class SCFThetaSamplerBase(rv_potential):
     def __new__(
         cls: T.Type[TSCFThetaSamplerBase],
-        pot: SCFPotential,
+        potential: SCFPotential,
         r: T.Optional[float] = None,
         **kw: T.Any
     ) -> TSCFThetaSamplerBase:
@@ -118,13 +118,9 @@ class SCFThetaSamplerBase(rv_continuous_modrvs):
 
     # /def
 
-    def __init__(self, pot: SCFPotential, **kw: T.Any) -> None:
-        super().__init__(a=-np.pi / 2, b=np.pi / 2)  # allowed range of theta
-
-        # parse from potential
-        self._pot = pot
-        # shape parameters
-        self._nmax, self._lmax = pot._Acos.shape[:2]
+    def __init__(self, potential: SCFPotential, **kw: T.Any) -> None:
+        kw["a"], kw["b"] = -np.pi / 2, np.pi / 2  # allowed range of theta
+        super().__init__(potential, **kw)
         self._lrange = np.arange(0, self._lmax + 1)  # lmax inclusive
 
     # /def
@@ -173,8 +169,8 @@ class SCFThetaSampler(SCFThetaSamplerBase):
         Not used.
     """
 
-    def __init__(self, pot: SCFPotential, r: float, **kw: T.Any) -> None:
-        super().__init__(pot)
+    def __init__(self, potential: SCFPotential, r: float, **kw: T.Any) -> None:
+        super().__init__(potential)
 
         # points at which CDF is defined
         self._r = r
@@ -255,10 +251,10 @@ class SCFThetaSampler_of_r(SCFThetaSamplerBase):
 # azimuth sampler
 
 
-class SCFPhiSamplerBase(rv_continuous_modrvs):
+class SCFPhiSamplerBase(rv_potential):
     def __new__(
         cls: T.Type[TSCFPhi],
-        pot: SCFPotential,
+        potential: SCFPotential,
         r: T.Optional[float] = None,
         theta: T.Optional[float] = None,
         **kw: T.Any
@@ -271,12 +267,9 @@ class SCFPhiSamplerBase(rv_continuous_modrvs):
 
     # /def
 
-    def __init__(self, pot: SCFPotential, **kw: T.Any) -> None:
-        super().__init__(a=0, b=2 * np.pi)
-
-        self._pot = pot
-        # shape parameters
-        self._nmax, self._lmax = pot._Acos.shape[:2]
+    def __init__(self, potential: SCFPotential, **kw: T.Any) -> None:
+        kw["a"], kw["b"] = 0, 2 * np.pi
+        super().__init__(potential, **kw)
         self._lrange = np.arange(0, self._lmax + 1)
 
     # /def
@@ -301,8 +294,8 @@ class SCFPhiSampler(SCFPhiSamplerBase):
 
     """
 
-    def __init__(self, pot: SCFPotential, r: float, theta: float, **kw: T.Any) -> None:
-        super().__init__(pot)
+    def __init__(self, potential: SCFPotential, r: float, theta: float, **kw: T.Any) -> None:
+        super().__init__(potential, **kw)
 
         self._r, self._theta = r, theta
         self._Rm, self._Sm = self.RSms(float(r), float(theta))

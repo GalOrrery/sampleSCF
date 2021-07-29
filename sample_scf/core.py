@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from galpy.potential import SCFPotential
 
 # LOCAL
-from .base import SCFSamplerBase, rv_continuous_modrvs
+from .base import SCFSamplerBase, rv_potential
 from .sample_exact import SCFSampler as SCFSamplerExact
 from .sample_intrp import SCFSampler as SCFSamplerIntrp
 
@@ -31,9 +31,9 @@ __all__: T.List[str] = ["SCFSampler"]
 
 
 class MethodsMapping(T.TypedDict):
-    r: rv_continuous_modrvs
-    theta: rv_continuous_modrvs
-    phi: rv_continuous_modrvs
+    r: rv_potential
+    theta: rv_potential
+    phi: rv_potential
 
 
 ##############################################################################
@@ -108,7 +108,7 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
             thetasampler = method["theta"](pot, **kwargs)
             phisampler = method["phi"](pot, **kwargs)
         else:
-            sampler_cls: rv_continuous_modrvs
+            sampler_cls: rv_potential
             if method == "interp":
                 sampler_cls = SCFSamplerIntrp
             elif method == "exact":
