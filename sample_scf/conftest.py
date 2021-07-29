@@ -16,7 +16,8 @@ import os
 # THIRD PARTY
 import numpy as np
 import pytest
-from galpy.potential import SCFPotential
+from galpy.df import isotropicHernquistdf
+from galpy.potential import HernquistPotential, SCFPotential
 
 try:
     # THIRD PARTY
@@ -74,17 +75,18 @@ def pytest_configure(config):
 # ============================================================================
 # Fixtures
 
+# Hernquist
+_Acos = np.zeros((5, 6, 6))
+_Acos_hern = _Acos.copy()
+_Acos_hern[0, 0, 0] = 1
+_hernquist_potential = SCFPotential(Acos=_Acos_hern)
+hernquist_df = isotropicHernquistdf(HernquistPotential())
+
 
 @pytest.fixture(autouse=True, scope="session")
 def hernquist_scf_potential():
     """Make a SCF of a Hernquist potential."""
-    Acos = np.zeros((5, 6, 6))
-
-    Acos_hern = Acos.copy()
-    Acos_hern[0, 0, 0] = 1
-
-    hernpot = SCFPotential(Acos=Acos_hern)
-    return hernpot
+    return _hernquist_potential
 
 
 # /def
@@ -109,9 +111,6 @@ def hernquist_scf_potential():
 )
 def potentials(request):
     if request.param in ("hernquist_scf_potential", "other_hernquist_scf_potential"):
-        Acos = np.zeros((5, 6, 6))
-        Acos_hern = Acos.copy()
-        Acos_hern[0, 0, 0] = 1
-        potential = SCFPotential(Acos=Acos_hern)
+        potential = _hernquist_potential
 
     yield potential

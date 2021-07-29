@@ -54,6 +54,9 @@ class Test_RVPotential:
         self.cls = rvtestsampler
         self.cls_args = ()
 
+        self.cdf_args = (0,)
+        self.cdf_kwargs = {}
+
         self.cdf_time_scale = 3e-6
         self.rvs_time_scale = 1e-4
 
@@ -70,6 +73,13 @@ class Test_RVPotential:
 
     # ===============================================================
     # Method Tests
+
+    @pytest.mark.skip("TODO")
+    def test_cdf(self, sampler, expected):
+        """Test :meth:`sample_scf.base.rv_potential.cdf`."""
+        assert False
+
+    # /def
 
     @pytest.mark.parametrize(
         "size, random, expected",
@@ -119,9 +129,6 @@ class Test_RVPotential:
 
     # /def
 
-    # ===============================================================
-    # Image tests
-
 
 # /class
 
@@ -162,6 +169,7 @@ class Test_SCFSamplerBase:
     # /def
 
     # ===============================================================
+    # Method Tests
 
     def test_rsampler(self, sampler):
         """Test :meth:`sample_scf.base.SCFSamplerBase.rsampler`."""

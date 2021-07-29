@@ -10,16 +10,17 @@
 import time
 
 # THIRD PARTY
-import astropy.coordinates as coord
 import astropy.units as u
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from astropy.utils.misc import NumpyRNGContext
 from numpy.testing import assert_allclose
 
 # LOCAL
 from .test_base import SCFSamplerTestBase
 from .test_base import Test_RVPotential as RVPotentialTest
-from sample_scf import sample_intrp
+from sample_scf import conftest, sample_intrp
 from sample_scf.utils import phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
 ##############################################################################
@@ -56,7 +57,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
         }
 
     # /def
-    
+
     # ===============================================================
     # Method Tests
 
@@ -72,6 +73,21 @@ class Test_SCFSampler(SCFSamplerTestBase):
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
+
+    # /def
+
+    # ===============================================================
+    # Plot Tests
+
+    @pytest.mark.skip("TODO!")
+    def test_interp_cdf_plot(self):
+        assert False
+
+    # /def
+
+    @pytest.mark.skip("TODO!")
+    def test_interp_sampling_plot(self):
+        assert False
 
     # /def
 
@@ -130,6 +146,10 @@ class Test_SCFRSampler(InterpRVPotentialTest):
 
         self.cdf_time_scale = 6e-4  # milliseconds
         self.rvs_time_scale = 2e-4  # milliseconds
+
+        self.theory = dict(
+            hernquist=conftest.hernquist_df,
+        )
 
     # /def
 
@@ -217,7 +237,90 @@ class Test_SCFRSampler(InterpRVPotentialTest):
     # /def
 
     # ===============================================================
-    # Usage Tests
+    # Image Tests
+
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",  # TODO!
+    )
+    def test_interp_r_cdf_plot(self, sampler):
+        fig = plt.figure(figsize=(10, 3))
+
+        ax = fig.add_subplot(
+            121,
+            title=r"$m(\leq r) / m_{tot}$",
+            xlabel="r",
+            ylabel=r"$m(\leq r) / m_{tot}$",
+        )
+        kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
+        ax.semilogx(rgrid, sampler.cdf(rgrid), **kw)
+        ax.axvline(0, c="tab:blue")
+        ax.axhline(sampler.cdf(0), c="tab:blue", label="r=0")
+        ax.axvline(1, c="tab:green")
+        ax.axhline(sampler.cdf(1), c="tab:green", label="r=1")
+        ax.axvline(1e2, c="tab:red")
+        ax.axhline(sampler.cdf(1e2), c="tab:red", label="r=100")
+
+        ax.set_xlim((1e-1, None))
+        ax.legend(loc="lower right")
+
+        ax = fig.add_subplot(
+            122,
+            title=r"$m(\leq \zeta) / m_{tot}$",
+            xlabel=r"$\zeta$",
+            ylabel=r"$m(\leq \zeta) / m_{tot}$",
+        )
+        ax.plot(zeta_of_r(rgrid), sampler.cdf(rgrid), **kw)
+        ax.axvline(zeta_of_r(0), c="tab:blue")
+        ax.axhline(sampler.cdf(0), c="tab:blue", label="r=0")
+        ax.axvline(zeta_of_r(1), c="tab:green")
+        ax.axhline(sampler.cdf(1), c="tab:green", label="r=1")
+        ax.axvline(zeta_of_r(1e2), c="tab:red")
+        ax.axhline(sampler.cdf(1e2), c="tab:red", label="r=100")
+        ax.legend(loc="upper left")
+
+        fig.tight_layout()
+        return fig
+
+    # /def
+
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",
+    )
+    def test_interp_r_sampling_plot(self, request, sampler):
+        """Test sampling."""
+        # fiqure out theory sampler
+        options = request.fixturenames[0]
+        if "hernquist" in options:
+            kind = "hernquist"
+        else:
+            raise ValueError
+
+        with NumpyRNGContext(0):  # control the random numbers
+            sample = sampler.rvs(size=int(1e6))
+            sample = sample[sample < 1e4]
+
+            theory = self.theory[kind].sample(n=int(1e6)).r()
+            theory = theory[theory < 1e4]
+
+        fig = plt.figure(figsize=(10, 3))
+        ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
+        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        # Comparing to expected
+        ax.hist(
+            theory,
+            bins=bins,
+            log=True,
+            alpha=0.5,
+            label="Hernquist theoretical",
+        )
+        ax.legend()
+        fig.tight_layout()
+
+        return fig
+
+    # /def
 
 
 # /class
@@ -234,6 +337,10 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
 
         self.cdf_time_scale = 3e-4
         self.rvs_time_scale = 6e-4
+
+        self.theory = dict(
+            hernquist=conftest.hernquist_df,
+        )
 
     # /def
 
@@ -345,7 +452,87 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
     # /def
 
     # ===============================================================
-    # Usage Tests
+    # Image Tests
+
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",  # TODO!
+    )
+    def test_interp_theta_cdf_plot(self, sampler):
+        fig = plt.figure(figsize=(10, 3))
+
+        ax = fig.add_subplot(
+            121,
+            title=r"CDF($\theta$)",
+            xlabel=r"$\theta$",
+            ylabel=r"CDF($\theta$)",
+        )
+        kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
+        ax.plot(tgrid, sampler.cdf(tgrid, r=10), **kw)
+        ax.axvline(-np.pi / 2, c="tab:blue")
+        ax.axhline(sampler.cdf(-np.pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
+        ax.axvline(0, c="tab:green")
+        ax.axhline(sampler.cdf(0, r=10), c="tab:green", label=r"$\theta=0$")
+        ax.axvline(np.pi / 2, c="tab:red")
+        ax.axhline(sampler.cdf(np.pi / 2, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
+        ax.legend(loc="lower right")
+
+        ax = fig.add_subplot(
+            122,
+            title=r"CDF($x$)",
+            xlabel=r"x$",
+            ylabel=r"CDF($x$)",
+        )
+        ax.plot(x_of_theta(tgrid), sampler.cdf(tgrid, r=10), **kw)
+        ax.axvline(x_of_theta(-1), c="tab:blue")
+        ax.axhline(sampler.cdf(-1, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
+        ax.axvline(x_of_theta(0), c="tab:green")
+        ax.axhline(sampler.cdf(0, r=10), c="tab:green", label=r"$\theta=0$")
+        ax.axvline(x_of_theta(1), c="tab:red")
+        ax.axhline(sampler.cdf(1, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
+        ax.legend(loc="upper left")
+
+        fig.tight_layout()
+        return fig
+
+    # /def
+
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",
+    )
+    def test_interp_theta_sampling_plot(self, request, sampler):
+        """Test sampling."""
+        # fiqure out theory sampler
+        options = request.fixturenames[0]
+        if "hernquist" in options:
+            kind = "hernquist"
+        else:
+            raise ValueError
+
+        with NumpyRNGContext(0):  # control the random numbers
+            sample = sampler.rvs(size=int(1e6), r=10)
+            sample = sample[sample < 1e4]
+
+            theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
+
+        fig = plt.figure(figsize=(10, 3))
+        ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
+        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        # Comparing to expected
+        ax.hist(
+            theory,
+            bins=bins,
+            log=True,
+            alpha=0.5,
+            label="Hernquist theoretical",
+        )
+        ax.legend()
+        fig.tight_layout()
+
+        return fig
+
+    # /def
 
 
 # /class
@@ -362,6 +549,10 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
 
         self.cdf_time_scale = 12e-4
         self.rvs_time_scale = 12e-4
+
+        self.theory = dict(
+            hernquist=conftest.hernquist_df,
+        )
 
     # /def
 
@@ -441,7 +632,73 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
     # /def
 
     # ===============================================================
-    # Usage Tests
+    # Image Tests
+
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",  # TODO!
+    )
+    def test_interp_phi_cdf_plot(self, sampler):
+        fig = plt.figure(figsize=(5, 3))
+
+        ax = fig.add_subplot(
+            111,
+            title=r"CDF($\phi$)",
+            xlabel=r"$\phi$",
+            ylabel=r"CDF($\phi$)",
+        )
+        kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
+        ax.plot(pgrid, sampler.cdf(pgrid, r=10, theta=np.pi / 6), **kw)
+        ax.axvline(0, c="tab:blue")
+        ax.axhline(sampler.cdf(0, r=10, theta=np.pi / 6), c="tab:blue", label=r"$\phi=0$")
+        ax.axvline(np.pi, c="tab:green")
+        ax.axhline(sampler.cdf(np.pi, r=10, theta=np.pi / 6), c="tab:green", label=r"$\phi=\pi$")
+        ax.axvline(2 * np.pi, c="tab:red")
+        ax.axhline(sampler.cdf(2 * np.pi, r=10, theta=np.pi / 6), c="tab:red", label=r"$\phi=2\pi$")
+        ax.legend(loc="lower right")
+
+        fig.tight_layout()
+        return fig
+
+    # /def
+
+
+#     @pytest.mark.mpl_image_compare(
+#         baseline_dir="baseline_images",
+#         # hash_library="baseline_images/path_to_file.json",
+#     )
+#     def test_interp_phi_sampling_plot(self, request, sampler):
+#         """Test sampling."""
+#         # fiqure out theory sampler
+#         options = request.fixturenames[0]
+#         if "hernquist" in options:
+#             kind = "hernquist"
+#         else:
+#             raise ValueError
+#
+#         with NumpyRNGContext(0):  # control the random numbers
+#             sample = sampler.rvs(size=int(1e6), r=10)
+#             sample = sample[sample < 1e4]
+#
+#             theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
+#
+#         fig = plt.figure(figsize=(10, 3))
+#         ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
+#         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+#         # Comparing to expected
+#         ax.hist(
+#             theory,
+#             bins=bins,
+#             log=True,
+#             alpha=0.5,
+#             label="Hernquist theoretical",
+#         )
+#         ax.legend()
+#         fig.tight_layout()
+#
+#         return fig
+#
+#     # /def
 
 
 # /class
