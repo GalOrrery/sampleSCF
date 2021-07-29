@@ -20,7 +20,7 @@ from numpy.testing import assert_allclose
 from .test_base import SCFSamplerTestBase
 from .test_base import Test_RVPotential as RVPotentialTest
 from sample_scf import sample_intrp
-from sample_scf.utils import r_of_zeta, x_of_theta, zeta_of_r
+from sample_scf.utils import phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
 ##############################################################################
 # PARAMETERS
@@ -39,30 +39,39 @@ class Test_SCFSampler(SCFSamplerTestBase):
     """Test :class:`sample_scf.sample_intrp.SCFSampler`."""
 
     def setup_class(self):
-        super().setup_class(self)
 
         self.cls = sample_intrp.SCFSampler
         self.cls_args = (rgrid, tgrid, pgrid)
         self.cls_kwargs = {}
 
-    # /def
+        self.expected_rvs = {
+            0: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+            1: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+            2: dict(
+                r=[59.15672032022, 2.842480998054, 71.71466505664, 5.471148006362],
+                theta=[0.36517953566424, 1.4761907683040, 0.33207251545636, 1.1267111320704]
+                * u.rad,
+                phi=[6.076027676095, 3.438361627636, 6.11155607905, 4.491321348792] * u.rad,
+            ),
+        }
 
-    @pytest.mark.skip("TODO!")
+    # /def
+    
+    # ===============================================================
+    # Method Tests
+
+    # TODO! make sure these are correct
+    @pytest.mark.parametrize(
+        "r, theta, phi, expected",
+        [
+            (0, 0, 0, [0, 0.5, 0]),
+            (1, 0, 0, [0.25, 0.5, 0]),
+            ([0, 1], [0, 0], [0, 0], [[0, 0.5, 0], [0.25, 0.5, 0]]),
+        ],
+    )
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
-
-    # /def
-
-    @pytest.mark.skip("TODO!")
-    def test_rvs(self, sampler, id, size, random):
-        """Test :meth:`sample_scf.base.SCFSamplerBase.rvs`."""
-        samples = sampler.rvs(size=size, random_state=random)
-        sce = coord.PhysicsSphericalRepresentation(**self.expected_rvs[id])
-
-        assert_allclose(samples.r, sce.r, atol=1e-16)
-        assert_allclose(samples.theta.value, sce.theta.value, atol=1e-16)
-        assert_allclose(samples.phi.value, sce.phi.value, atol=1e-16)
 
     # /def
 
@@ -235,7 +244,10 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
         """Test initialization."""
         super().test___init__(sampler)
 
-        # TODO! test mgrid endpoints, cdf, and ppf
+        # a shape mismatch
+        Qls = thetaQls(sampler._potential, rgrid[1:-1])
+        with pytest.raises(ValueError, match="Qls must be shape"):
+            sampler.__class__(sampler._potential, rgrid, tgrid, Qls=Qls)
 
     # /def
 
@@ -356,10 +368,14 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
     # ===============================================================
     # Method Tests
 
-    @pytest.mark.skip("TODO!")
-    def test___init__(self):
+    def test___init__(self, sampler):
         """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler._cdf`."""
-        assert False
+        # super().test___init__(sampler)  # doesn't work  TODO!
+
+        # a shape mismatch
+        RSms = phiRSms(sampler._potential, rgrid[1:-1], tgrid[1:-1])
+        with pytest.raises(ValueError, match="Rm, Sm must be shape"):
+            sampler.__class__(sampler._potential, rgrid, tgrid, pgrid, RSms=RSms)
 
     # /def
 
