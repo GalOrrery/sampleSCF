@@ -55,11 +55,11 @@ class SCFSampler(SCFSamplerBase):
 
     """
 
-    def __init__(self, pot: SCFPotential, **kw: T.Any) -> None:
-        self._rsampler = SCFRSampler(pot)
+    def __init__(self, potential: SCFPotential, **kw: T.Any) -> None:
+        self._rsampler = SCFRSampler(potential)
         # not fixed r, theta. slower!
-        self._thetasampler = SCFThetaSampler_of_r(pot, r=None)
-        self._phisampler = SCFPhiSampler_of_rtheta(pot, r=None, theta=None)
+        self._thetasampler = SCFThetaSampler_of_r(potential)  # r=None
+        self._phisampler = SCFPhiSampler_of_rtheta(potential)  # r=None, theta=None
 
     # /def
 
@@ -89,7 +89,7 @@ class SCFRSampler(rv_potential):
     # /def
 
     def _cdf(self, r: npt.ArrayLike, *args: T.Any, **kw: T.Any) -> NDArray64:
-        mass: NDArray64 = self._pot._mass(r)
+        mass: NDArray64 = self._potential._mass(r)
         # (self._scfmass(zeta) - self._mi) / (self._mf - self._mi)
         # TODO! is this normalization even necessary?
         return mass
@@ -139,7 +139,7 @@ class SCFThetaSamplerBase(rv_potential):
         Ql : ndarray
 
         """
-        Qls: NDArray64 = thetaQls(self._pot, r)
+        Qls: NDArray64 = thetaQls(self._potential, r)
         return Qls
 
     # /def
@@ -212,9 +212,9 @@ class SCFThetaSampler(SCFThetaSamplerBase):
 
 
 class SCFThetaSampler_of_r(SCFThetaSamplerBase):
-    def _cdf(self, theta: NDArray64, *args: T.Any, r: float) -> NDArray64:
+    def _cdf(self, theta: NDArray64, *args: T.Any, r: T.Optional[float] = None) -> NDArray64:
         x = x_of_theta(theta)
-        Qlsatr = self.Qls(r)
+        Qlsatr = self.Qls(T.cast(float, r))
 
         # l = 0
         term0 = (1.0 + x) / 2.0
@@ -276,7 +276,26 @@ class SCFPhiSamplerBase(rv_potential):
 
     # @functools.lru_cache()
     def RSms(self, r: float, theta: float) -> T.Tuple[NDArray64, NDArray64]:
-        return phiRSms(self._pot, r, theta)
+        return phiRSms(self._potential, r, theta)
+
+    # /def
+
+    def _cdf(self, phi: NDArray64, *args: T.Any, **kw: T.Any) -> NDArray64:
+        Rm = self._Rm
+        Sm = self._Sm
+
+        # l = 0
+        term0: NDArray64 = phi / (2 * np.pi)
+
+        # l = 1+
+        factor = 1 / Rm[0]  # R0
+        ms = np.arange(1, Rm.shape[1] if len(Rm.shape) > 1 else 2)
+        term1p = np.sum(
+            (Rm[1:] * np.sin(ms * phi) + Sm[1:] * (1 - np.cos(ms * phi))) / (2 * np.pi * ms),
+        )
+
+        cdf: NDArray64 = term0 + factor * term1p
+        return cdf
 
     # /def
 
@@ -302,22 +321,6 @@ class SCFPhiSampler(SCFPhiSamplerBase):
 
     # /def
 
-    def _cdf(self, phi: NDArray64, *args: T.Any, **kw: T.Any) -> NDArray64:
-        Rm, Sm = self._Rm, self._Sm
-
-        # l = 0
-        term0: NDArray64 = phi / (2 * np.pi)
-
-        # l = 1+
-        factor = 1 / Rm[0]  # R0
-        ms = np.arange(1, Rm.shape[1])
-        term1p = np.sum(
-            (Rm[1:] * np.sin(ms * phi) + Sm[1:] * (1 - np.cos(ms * phi))) / (2 * np.pi * ms),
-        )
-
-        cdf: NDArray64 = term0 + factor * term1p
-        return cdf
-
     def cdf(self, phi: NDArray64, *args: T.Any, **kw: T.Any) -> NDArray64:
         return self._cdf(phi, *args, **kw)
 
@@ -331,8 +334,14 @@ class SCFPhiSampler_of_rtheta(SCFPhiSamplerBase):
     _Rm: T.Optional[NDArray64]
     _Sm: T.Optional[NDArray64]
 
-    def _cdf(self, phi: npt.ArrayLike, *args: T.Any, r: float, theta: float) -> NDArray64:
-        self._Rm, self._Sm = self.RSms(float(r), float(theta))
+    def _cdf(
+        self,
+        phi: npt.ArrayLike,
+        *args: T.Any,
+        r: T.Optional[float] = None,
+        theta: T.Optional[float] = None
+    ) -> NDArray64:
+        self._Rm, self._Sm = self.RSms(T.cast(float, r), T.cast(float, theta))
         cdf: NDArray64 = super()._cdf(phi, *args)
         self._Rm, self._Sm = None, None
         return cdf

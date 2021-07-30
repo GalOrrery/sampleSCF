@@ -96,25 +96,25 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
 
     def __init__(
         self,
-        pot: SCFPotential,
+        potential: SCFPotential,
         method: T.Union[T.Literal["interp", "exact"], MethodsMapping],
         **kwargs: T.Any
     ) -> None:
-        super().__init__(pot)
+        super().__init__(potential)
 
         if isinstance(method, Mapping):
             sampler = None
-            rsampler = method["r"](pot, **kwargs)
-            thetasampler = method["theta"](pot, **kwargs)
-            phisampler = method["phi"](pot, **kwargs)
+            rsampler = method["r"](potential, **kwargs)
+            thetasampler = method["theta"](potential, **kwargs)
+            phisampler = method["phi"](potential, **kwargs)
         else:
-            sampler_cls: rv_potential
+            sampler_cls: T.Type[SCFSamplerBase]
             if method == "interp":
                 sampler_cls = SCFSamplerIntrp
             elif method == "exact":
                 sampler_cls = SCFSamplerExact
 
-            sampler = sampler_cls(pot, **kwargs)
+            sampler = sampler_cls(potential, **kwargs)
             rsampler = sampler.rsampler
             thetasampler = sampler.thetasampler
             phisampler = sampler.phisampler
