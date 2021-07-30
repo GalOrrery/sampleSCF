@@ -517,7 +517,12 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
             theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
 
         fig = plt.figure(figsize=(10, 3))
-        ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
+        ax = fig.add_subplot(
+            121,
+            title="SCF vs theory sampling",
+            xlabel=r"$\theta$",
+            ylabel="frequency",
+        )
         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
         # Comparing to expected
         ax.hist(
@@ -662,43 +667,47 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
 
     # /def
 
+    @pytest.mark.mpl_image_compare(
+        baseline_dir="baseline_images",
+        # hash_library="baseline_images/path_to_file.json",
+    )
+    def test_interp_phi_sampling_plot(self, request, sampler):
+        """Test sampling."""
+        # fiqure out theory sampler
+        options = request.fixturenames[0]
+        if "hernquist" in options:
+            kind = "hernquist"
+        else:
+            raise ValueError
 
-#     @pytest.mark.mpl_image_compare(
-#         baseline_dir="baseline_images",
-#         # hash_library="baseline_images/path_to_file.json",
-#     )
-#     def test_interp_phi_sampling_plot(self, request, sampler):
-#         """Test sampling."""
-#         # fiqure out theory sampler
-#         options = request.fixturenames[0]
-#         if "hernquist" in options:
-#             kind = "hernquist"
-#         else:
-#             raise ValueError
-#
-#         with NumpyRNGContext(0):  # control the random numbers
-#             sample = sampler.rvs(size=int(1e6), r=10)
-#             sample = sample[sample < 1e4]
-#
-#             theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
-#
-#         fig = plt.figure(figsize=(10, 3))
-#         ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
-#         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
-#         # Comparing to expected
-#         ax.hist(
-#             theory,
-#             bins=bins,
-#             log=True,
-#             alpha=0.5,
-#             label="Hernquist theoretical",
-#         )
-#         ax.legend()
-#         fig.tight_layout()
-#
-#         return fig
-#
-#     # /def
+        with NumpyRNGContext(0):  # control the random numbers
+            sample = sampler.rvs(size=int(1e6), r=10, theta=np.pi / 6)
+            sample = sample[sample < 1e4]
+
+            theory = self.theory[kind].sample(n=int(1e6)).phi()
+
+        fig = plt.figure(figsize=(10, 3))
+        ax = fig.add_subplot(
+            121,
+            title="SCF vs theory sampling",
+            xlabel=r"$\phi$",
+            ylabel="frequency",
+        )
+        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        # Comparing to expected
+        ax.hist(
+            theory,
+            bins=bins,
+            log=True,
+            alpha=0.5,
+            label="Hernquist theoretical",
+        )
+        ax.legend()
+        fig.tight_layout()
+
+        return fig
+
+    # /def
 
 
 # /class

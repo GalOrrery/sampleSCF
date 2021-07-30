@@ -12,49 +12,16 @@ __all__ = [
 ##############################################################################
 # IMPORTS
 
-# BUILT-IN
-import pathlib
-
 # THIRD PARTY
-# import matplotlib.pyplot as plt
 import numpy as np
-
-# import pytest
-# from astropy.utils.misc import NumpyRNGContext
-# from galpy.df import isotropicHernquistdf
-from galpy.potential import HernquistPotential, SCFPotential
-
-# LOCAL
-# from sample_scf.sample_exact import SCFPhiSampler, SCFRSampler, SCFSampler, SCFThetaSampler
-from sample_scf.utils import zeta_of_r  # x_of_theta
-
-# from .test_base import SCFSamplerTestBase
-# from sample_scf import sample_exact
-
 
 ##############################################################################
 # PARAMETERS
 
-# hernpot = TriaxialHernquistPotential(b=0.8, c=1.2)
-hernpot = HernquistPotential()
-coeffs = np.load(pathlib.Path(__file__).parent / "scf_coeffs.npz")
-Acos, Asin = coeffs["Acos"], coeffs["Asin"]
+rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 100)))
+tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
+pgrid = np.linspace(0, 2 * np.pi, 30)
 
-pot = SCFPotential(Acos=Acos, Asin=Asin)
-pot.turn_physical_off()
-
-# r sampling
-r = np.unique(np.concatenate([[0], np.geomspace(1e-7, 1e3, 100), [np.inf]]))
-zeta = zeta_of_r(r)
-m = [pot._mass(x) for x in r]
-m[0] = 0
-m[-1] = 1
-
-# theta sampling
-theta = np.linspace(-np.pi / 2, np.pi / 2, 30)
-
-# phi sampling
-phi = np.linspace(0, 2 * np.pi, 30)
 
 ##############################################################################
 # CODE
@@ -62,13 +29,38 @@ phi = np.linspace(0, 2 * np.pi, 30)
 
 
 # class Test_SCFSampler(SCFSamplerTestBase):
-#     """Test :class:`sample_scf.sample_intrp.SCFSampler`."""
+#     """Test :class:`sample_scf.sample_exact.SCFSampler`."""
 #
-#     def setup_class(self):
-#         super().setup_class()
+#     self.cls = sample_intrp.SCFSampler
+#     self.cls_args = (rgrid, tgrid, pgrid)
+#     self.cls_kwargs = {}
 #
-#         self.cls = sample_exact.SCFSampler
-#         self.cls_args = ()
+#     self.expected_rvs = {
+#         0: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+#         1: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+#         2: dict(
+#             r=[59.15672032022, 2.842480998054, 71.71466505664, 5.471148006362],
+#             theta=[0.36517953566424, 1.4761907683040, 0.33207251545636, 1.1267111320704]
+#             * u.rad,
+#             phi=[6.076027676095, 3.438361627636, 6.11155607905, 4.491321348792] * u.rad,
+#         ),
+#     }
+#
+#     # ===============================================================
+#     # Method Tests
+#
+#     # TODO! make sure these are correct
+#     @pytest.mark.parametrize(
+#         "r, theta, phi, expected",
+#         [
+#             (0, 0, 0, [0, 0.5, 0]),
+#             (1, 0, 0, [0.25, 0.5, 0]),
+#             ([0, 1], [0, 0], [0, 0], [[0, 0.5, 0], [0.25, 0.5, 0]]),
+#         ],
+#     )
+#     def test_cdf(self, sampler, r, theta, phi, expected):
+#         """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
+#         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 #
 #     # /def
 #
