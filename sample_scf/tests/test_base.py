@@ -62,7 +62,7 @@ class Test_RVPotential:
         self.rvs_args = ()
         self.rvs_kwargs = {}
 
-        self.cdf_time_scale = 3e-6
+        self.cdf_time_scale = 4e-6
         self.rvs_time_scale = 1e-4
 
     # /def
