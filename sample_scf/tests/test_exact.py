@@ -6,9 +6,6 @@
 ##############################################################################
 # IMPORTS
 
-# BUILT-IN
-import typing as T
-
 # THIRD PARTY
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -20,9 +17,8 @@ from numpy.testing import assert_allclose
 # LOCAL
 from .common import SCFPhiSamplerTestBase, SCFRSamplerTestBase, SCFThetaSamplerTestBase
 from .test_base import SCFSamplerTestBase
-from .test_base import Test_RVPotential as RVPotentialTest
 from sample_scf import conftest, exact
-from sample_scf.utils import r_of_zeta, theta_of_x, thetaQls, x_of_theta
+from sample_scf.utils import difPls, r_of_zeta, thetaQls, x_of_theta
 
 ##############################################################################
 # PARAMETERS
@@ -309,11 +305,11 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
             # TODO! a more robust test
 
             # l = 0
-            term0 = 0.5 * (xs + 1.0)  # (T,)
+            term0 = 0.5 * (x + 1.0)  # (T,)
             # l = 1+ : non-symmetry
             factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
             term1p = np.sum(
-                (Qls[None, :, 1:] * difPls(xs, self._lmax - 1).T[:, None, :]).T,
+                (Qls[None, :, 1:] * difPls(x, self._lmax - 1).T[:, None, :]).T,
                 axis=0,
             )
             cdf = term0[None, :] + np.nan_to_num(factor[:, None] * term1p)  # (R, T)

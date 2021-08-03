@@ -6,9 +6,6 @@
 ##############################################################################
 # IMPORTS
 
-# BUILT-IN
-import time
-
 # THIRD PARTY
 import astropy.units as u
 import matplotlib.pyplot as plt

@@ -340,14 +340,14 @@ class SCFPhiSamplerBase(rv_potential):
     # /def
 
     def _cdf(self, phi: NDArray64, *args: T.Any, **kw: T.Any) -> NDArray64:
-        """Cumulative Distribution Function.
+        r"""Cumulative Distribution Function.
 
         Parameters
         ----------
         phi : float or ndarray[float] ['radian']
             Azimuthal coordinate in radians, :math:`\in [0, 2\pi]`.
-        *args
-        **kw
+        *args, **kw
+            Not used.
 
         Returns
         -------
@@ -414,7 +414,7 @@ class SCFPhiFixedSampler(SCFPhiSamplerBase):
     # /def
 
     def cdf(self, phi: NDArray64, *args: T.Any, **kw: T.Any) -> NDArray64:
-        """Cumulative Distribution Function.
+        r"""Cumulative Distribution Function.
 
         Parameters
         ----------
@@ -446,7 +446,7 @@ class SCFPhiSampler(SCFPhiSamplerBase):
         r: T.Optional[float] = None,
         theta: T.Optional[float] = None,
     ) -> NDArray64:
-        """Cumulative Distribution Function.
+        r"""Cumulative Distribution Function.
 
         Parameters
         ----------
@@ -478,7 +478,7 @@ class SCFPhiSampler(SCFPhiSamplerBase):
     # /def
 
     def cdf(self, phi: npt.ArrayLike, *args: T.Any, r: float, theta: float) -> NDArray64:
-        """Cumulative Distribution Function.
+        r"""Cumulative Distribution Function.
 
         Parameters
         ----------
