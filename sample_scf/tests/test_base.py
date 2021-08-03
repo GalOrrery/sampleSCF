@@ -80,10 +80,9 @@ class Test_RVPotential:
     # ===============================================================
     # Method Tests
 
-    @pytest.mark.skip("TODO")
-    def test_cdf(self, sampler, expected):
+    def test_cdf(self, sampler):
         """Test :meth:`sample_scf.base.rv_potential.cdf`."""
-        assert False
+        assert sampler.cdf(0.0) == 0.0
 
     # /def
 

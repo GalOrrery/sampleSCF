@@ -193,12 +193,15 @@ class SCFSamplerBase:
         -------
         (N, 3) ndarray
         """
+        # coordinates  # TODO! deprecate whan galpy can do ints
+        r = np.asanyarray(r, dtype=float)
+        theta = np.asanyarray(theta, dtype=float)
+        phi = np.asanyarray(phi, dtype=float)
+
         R: NDArray64 = self.rsampler.cdf(r)
         Theta: NDArray64 = self.thetasampler.cdf(theta, r=r)
         Phi: NDArray64 = self.phisampler.cdf(phi, r=r, theta=theta)
-
-        RTP: NDArray64 = np.c_[R, Theta, Phi]
-        return RTP
+        return np.c_[R, Theta, Phi].squeeze()
 
     # /def
 

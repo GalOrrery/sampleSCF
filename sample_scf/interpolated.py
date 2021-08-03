@@ -32,7 +32,7 @@ from scipy.interpolate import (
 # LOCAL
 from ._typing import NDArray64, RandomLike
 from .base import SCFSamplerBase, rv_potential
-from .utils import _phiRSms, difPls, phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
+from .utils import _grid_phiRSms, difPls, phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
 __all__: T.List[str] = [
     "SCFSampler",
@@ -92,8 +92,8 @@ class SCFSampler(SCFSamplerBase):
 
     Now we can evaluate the CDF
 
-        >>> sampler.cdf(10, np.pi/3, np.pi)
-        array([[0.82666461, 0.9330127 , 0.5       ]])
+        >>> sampler.cdf(10.0, np.pi/3, np.pi)
+        array([0.82666461, 0.9330127 , 0.5       ])
 
     And draw samples
 
@@ -131,7 +131,7 @@ class SCFSampler(SCFSamplerBase):
         # phi Rm, Sm
         # radial and inclination sums
 
-        RSms = _phiRSms(
+        RSms = _grid_phiRSms(
             rhoTilde,
             Acos=potential._Acos,
             Asin=potential._Asin,

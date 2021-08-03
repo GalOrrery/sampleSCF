@@ -227,7 +227,69 @@ def thetaQls(pot: SCFPotential, r: T.Union[float, NDArray64]) -> NDArray64:
 # -------------------------------------------------------------------
 
 
-def _phiRSms(
+def _pnts_phiRSms(
+    rhoTilde: NDArray64,
+    Acos: NDArray64,
+    Asin: NDArray64,
+    r: npt.ArrayLike,
+    theta: npt.ArrayLike,
+) -> T.Tuple[NDArray64, NDArray64]:
+    """Radial and inclination sums for azimuthal weighting factors.
+
+    Parameters
+    ----------
+    rhoTilde: (R, N, L) ndarray
+    Acos, Asin : (N, L, L) ndarray
+    r, theta : float or ndarray[float]
+        With shapes (R,), (T,), respectively.
+
+    Returns
+    -------
+    Rm, Sm : (R, T, L) ndarray
+        Azimuthal weighting factors.
+    """
+    # need r and theta to be arrays. Maintains units.
+    tgrid: NDArray64 = atleast_1d(theta)
+
+    # transform to correct shape for vectorized computation
+    x = x_of_theta(tgrid)  # (R/T,)
+    Xs = x[:, None, None, None]  # (R/T, {N}, {L}, {L})
+
+    # compute the r-dependent coefficient matrix $\tilde{\rho}$
+    nmax, lmax = Acos.shape[:2]
+    RhoT = rhoTilde[:, :, :, None]  # (R/T, N, L, {L})
+
+    # legendre polynomials
+    with warnings.catch_warnings():  # there's a RuntimeWarning to ignore
+        warnings.simplefilter("ignore")
+        lps = lpmn_vec(lmax - 1, lmax - 1, x)[0]  # drop deriv
+
+    PP = np.stack(lps, axis=0).astype(float)[:, None, :, :]
+    # (R/T, {N}, L, L)
+
+    # full R & S matrices
+    RSnlm = RhoT * sqrt(1 - Xs ** 2) * PP  # (R/T, N, L, L)
+
+    # n-sum  # (R/T, N, L, L) -> (R/T, L, L)
+    Rlm = sum(Acos[None, :, :, :] * RSnlm, axis=1)
+    Slm = sum(Asin[None, :, :, :] * RSnlm, axis=1)
+    # fix adding +/- inf -> NaN. happens when r=0.
+    idx = np.all(np.isnan(Rlm[:, 0, :]), axis=-1)
+    Rlm[idx, 0, :] = nan_to_num(Rlm[idx, 0, :])
+    Slm[idx, 0, :] = nan_to_num(Slm[idx, 0, :])
+
+    # m-sum  # (R/T, L)
+    sumidx = range(Rlm.shape[1])
+    Rm = stack([sum(Rlm[:, m:, m], axis=1) for m in sumidx], axis=1)
+    Sm = stack([sum(Slm[:, m:, m], axis=1) for m in sumidx], axis=1)
+
+    return Rm, Sm
+
+
+# /def
+
+
+def _grid_phiRSms(
     rhoTilde: NDArray64,
     Acos: NDArray64,
     Asin: NDArray64,
@@ -293,6 +355,7 @@ def phiRSms(
     pot: SCFPotential,
     r: npt.ArrayLike,
     theta: npt.ArrayLike,
+    grid: bool = True,
 ) -> T.Tuple[NDArray64, NDArray64]:
     r"""Radial and inclination sums for azimuthal weighting factors.
 
@@ -331,7 +394,10 @@ def phiRSms(
     )
 
     # pass to actual calculator, which takes the matrices and r, theta grids.
-    Rm, Sm = _phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
+    if grid:
+        Rm, Sm = _grid_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
+    else:
+        Rm, Sm = _pnts_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
     return Rm, Sm
 
 

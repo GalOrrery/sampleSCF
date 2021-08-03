@@ -23,7 +23,7 @@ from sample_scf.utils import difPls, r_of_zeta, thetaQls, x_of_theta
 ##############################################################################
 # PARAMETERS
 
-rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 100)))
+rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 29)))  # same shape as ↓
 tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
 pgrid = np.linspace(0, 2 * np.pi, 30)
 
@@ -37,9 +37,17 @@ class _request:
     def __init__(self, param):
         self.param = param
 
+    # /def
+
+
+# /class
+
 
 def getpot(name):
     return next(conftest.potentials.__wrapped__(_request(name)))
+
+
+# /def
 
 
 class Test_SCFSampler(SCFSamplerTestBase):
@@ -92,15 +100,70 @@ class Test_SCFSampler(SCFSamplerTestBase):
     # ===============================================================
     # Plot Tests
 
-    @pytest.mark.skip("TODO!")
-    def test_exact_cdf_plot(self):
-        assert False
+    def test_exact_cdf_plot(self, sampler):
+        """Plot cdf."""
+        kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
+        cdf = sampler.cdf(rgrid, tgrid, pgrid)
+
+        fig = plt.figure(figsize=(15, 3))
+
+        # r
+        ax = fig.add_subplot(
+            131,
+            title=r"$m(\leq r) / m_{tot}$",
+            xlabel="r",
+            ylabel=r"$m(\leq r) / m_{tot}$",
+        )
+        ax.semilogx(rgrid, cdf[:, 0], **kw)
+
+        # theta
+        ax = fig.add_subplot(
+            132,
+            title=r"CDF($\theta$)",
+            xlabel=r"$\theta$",
+            ylabel=r"CDF($\theta$)",
+        )
+        ax.plot(tgrid, cdf[:, 1], **kw)
+
+        # phi
+        ax = fig.add_subplot(
+            133,
+            title=r"CDF($\phi$)",
+            xlabel=r"$\phi$",
+            ylabel=r"CDF($\phi$)",
+        )
+        ax.plot(pgrid, cdf[:, 2], **kw)
+
+        return fig
 
     # /def
 
-    @pytest.mark.skip("TODO!")
-    def test_exact_sampling_plot(self):
-        assert False
+    def test_exact_sampling_plot(self, sampler):
+        """Plot sampling."""
+        samples = sampler.rvs(size=int(1e3), random_state=3)
+
+        fig = plt.figure(figsize=(15, 4))
+
+        ax = fig.add_subplot(
+            131,
+            title=r"$m(\leq r) / m_{tot}$",
+            xlabel="r",
+            ylabel=r"$m(\leq r) / m_{tot}$",
+        )
+        ax.hist(samples.r.value[samples.r < 5e3], log=True, bins=50, density=True)
+
+        ax = fig.add_subplot(
+            132,
+            title=r"CDF($\theta$)",
+            xlabel=r"$\theta$",
+            ylabel=r"CDF($\theta$)",
+        )
+        ax.hist(samples.theta.value, bins=50, density=True)
+
+        ax = fig.add_subplot(133, title=r"CDF($\phi$)", xlabel=r"$\phi$", ylabel=r"CDF($\phi$)")
+        ax.hist(samples.phi.value, bins=50)
+
+        return fig
 
     # /def
 
@@ -384,7 +447,7 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
             ylabel=r"CDF($\theta$)",
         )
         kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
-        ax.plot(tgrid, sampler.cdf(tgrid, r=10)[0, :], **kw)
+        ax.plot(tgrid, sampler.cdf(tgrid, r=10), **kw)
         ax.axvline(-np.pi / 2, c="tab:blue")
         ax.axhline(sampler.cdf(-np.pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
         ax.axvline(0, c="tab:green")
@@ -400,7 +463,7 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
             xlabel=r"x$",
             ylabel=r"CDF($x$)",
         )
-        ax.plot(x_of_theta(tgrid), sampler.cdf(tgrid, r=10)[0, :], **kw)
+        ax.plot(x_of_theta(tgrid), sampler.cdf(tgrid, r=10), **kw)
         ax.axvline(x_of_theta(-1), c="tab:blue")
         ax.axhline(sampler.cdf(-1, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
         ax.axvline(x_of_theta(0), c="tab:green")

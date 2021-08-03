@@ -169,18 +169,20 @@ class SCFThetaSamplerBase(rv_potential):
     @abc.abstractmethod
     def _cdf(self, x: NDArray64, Qls: NDArray64) -> NDArray64:
         xs = np.atleast_1d(x)
-        Qls = np.atleast_2d(Qls)
+        Qls = np.atleast_2d(Qls)  # ({R}, L)
 
         # l = 0
         term0 = 0.5 * (xs + 1.0)  # (T,)
         # l = 1+ : non-symmetry
         factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
         term1p = np.sum(
-            (Qls[None, :, 1:] * difPls(xs, self._lmax - 1).T[:, None, :]).T,
+            (Qls[:, 1:] * difPls(xs, self._lmax - 1).T).T,
             axis=0,
         )
+        # difPls shape (L, T) -> (T, L)
+        # term1p shape (R/T, L) -> (L, R/T) -> sum -> (R/T,)
 
-        cdf = term0[None, :] + np.nan_to_num(factor[:, None] * term1p)  # (R, T)
+        cdf = term0 + np.nan_to_num(factor * term1p)  # (R/T,)
         return cdf
 
     # /def
@@ -357,27 +359,26 @@ class SCFPhiSamplerBase(rv_potential):
             output.
 
         """
-        Rm, Sm = kw.get("RSms", (self._Rm, self._Sm))  # (len(r), len(theta), L)
+        Rm, Sm = kw.get("RSms", (self._Rm, self._Sm))  # (R/T, L)
 
-        Phis: NDArray64 = np.atleast_1d(phi)[None, None, :, None]  # ({R}, {T}, P, {L})
+        Phis: NDArray64 = np.atleast_1d(phi)[:, None]  # (P, {L})
 
         # l = 0 : spherical symmetry
-        term0: NDArray64 = Phis[..., 0] / (2 * np.pi)  # (1, 1, P)
+        term0: NDArray64 = Phis[..., 0] / (2 * np.pi)  # (1, P)
 
         # l = 1+ : non-symmetry
-        factor = 1 / Rm[:, :, :1]  # R0  (R, T, 1)  # can be inf
-        ms = np.arange(1, self._lmax)[None, None, None, :]  # ({R}, {T}, {P}, L)
+        factor = 1 / Rm[:, 0]  # R0  (R/T,)  # can be inf
+        ms = np.arange(1, self._lmax)[None, :]  # ({R/T/P}, L)
         term1p = np.sum(
-            (Rm[:, :, None, 1:] * np.sin(ms * Phis) + Sm[:, :, None, 1:] * (1 - np.cos(ms * Phis)))
+            (Rm[:, 1:] * np.sin(ms * Phis) + Sm[:, 1:] * (1 - np.cos(ms * Phis)))
             / (2 * np.pi * ms),
             axis=-1,
         )
 
-        cdf: NDArray64 = term0 + np.nan_to_num(factor * term1p)  # (R, T, P)
+        cdf: NDArray64 = term0 + np.nan_to_num(factor * term1p)  # (R/T/P,)
         # 'factor' can be inf and term1p 0 => inf * 0 = nan -> 0
 
-        # return cdf, squeezed of extra dimensions so scalar phi -> scalar
-        return cdf.squeeze()
+        return cdf
 
     # /def
 
@@ -409,7 +410,7 @@ class SCFPhiFixedSampler(SCFPhiSamplerBase):
         # assign fixed r, theta
         self._r, self._theta = r, theta
         # and can compute the associated assymetry measures
-        self._Rm, self._Sm = phiRSms(potential, r, theta)
+        self._Rm, self._Sm = phiRSms(potential, r, theta, grid=False)
 
     # /def
 
@@ -471,7 +472,7 @@ class SCFPhiSampler(SCFPhiSamplerBase):
         ValueError
             If 'r' or 'theta' are None.
         """
-        RSms = phiRSms(self._potential, T.cast(float, r), T.cast(float, theta))
+        RSms = phiRSms(self._potential, T.cast(float, r), T.cast(float, theta), grid=False)
         cdf: NDArray64 = super()._cdf(phi, *args, RSms=RSms)
         return cdf
 
