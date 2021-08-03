@@ -34,7 +34,12 @@ from ._typing import NDArray64, RandomLike
 from .base import SCFSamplerBase, rv_potential
 from .utils import _phiRSms, difPls, phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
-__all__: T.List[str] = ["SCFSampler", "SCFRSampler", "SCFThetaSampler", "SCFPhiSampler"]
+__all__: T.List[str] = [
+    "SCFSampler",
+    "SCFRSampler",
+    "SCFThetaSampler",
+    "SCFPhiSampler",
+]
 
 
 ##############################################################################
@@ -88,48 +93,48 @@ class SCFSampler(SCFSamplerBase):
     Now we can evaluate the CDF
 
         >>> sampler.cdf(10, np.pi/3, np.pi)
-        array([[0.82644628, 0.9330127 , 0.5       ]])
+        array([[0.82666461, 0.9330127 , 0.5       ]])
 
     And draw samples
 
         >>> sampler.rvs(size=5, random_state=3)
         <PhysicsSphericalRepresentation (phi, theta, r) in (rad, rad, )
-            [(3.46076529, 1.46902493,  2.8783381 ),
-             (4.44942399, 1.141429  ,  5.30975319),
-             (1.82780838, 2.0022487 ,  1.17087346),
-             (3.2096245 , 1.54913942,  2.50535341),
-             (5.61055118, 0.66665592, 17.16817722)]>
+            [(3.46076529, 1.46902493,  2.90496213),
+             (4.44942399, 1.141429  ,  5.33343759),
+             (1.82780838, 2.0022487 ,  1.19407968),
+             (3.2096245 , 1.54913942,  2.53149096),
+             (5.61055118, 0.66665592, 17.0125581 )]>
 
     """
 
     def __init__(
         self,
-        pot: SCFPotential,
+        potential: SCFPotential,
         rgrid: NDArray64,
         thetagrid: NDArray64,
         phigrid: NDArray64,
         **kw: T.Any,
     ) -> None:
         # compute the r-dependent coefficient matrix $\tilde{\rho}$
-        nmax, lmax = pot._Acos.shape[:2]
+        nmax, lmax = potential._Acos.shape[:2]
         rhoTilde = np.array(
-            [pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid],
+            [potential._rhoTilde(r, N=nmax, L=lmax) for r in rgrid],
         )  # (R, N, L)
 
         # ----------
         # theta Qls
         # radial sums over $\cos$ portion of the density function
         # the $\sin$ part disappears in the integral.
-        Qls = np.sum(pot._Acos[None, :, :, 0] * rhoTilde, axis=1)  # ({R}, L)
+        Qls = np.sum(potential._Acos[None, :, :, 0] * rhoTilde, axis=1)  # ({R}, L)
 
         # ----------
         # phi Rm, Sm
         # radial and inclination sums
 
-        Rm, Sm = _phiRSms(
+        RSms = _phiRSms(
             rhoTilde,
-            Acos=pot._Acos,
-            Asin=pot._Asin,
+            Acos=potential._Acos,
+            Asin=potential._Asin,
             r=rgrid,
             theta=thetagrid,
         )
@@ -137,9 +142,9 @@ class SCFSampler(SCFSamplerBase):
         # ----------
         # make samplers
 
-        self._rsampler = SCFRSampler(pot, rgrid, **kw)
-        self._thetasampler = SCFThetaSampler(pot, rgrid, thetagrid, Qls=Qls, **kw)
-        self._phisampler = SCFPhiSampler(pot, rgrid, thetagrid, phigrid, RSms=(Rm, Sm), **kw)
+        self._rsampler = SCFRSampler(potential, rgrid, **kw)
+        self._thetasampler = SCFThetaSampler(potential, rgrid, thetagrid, Qls=Qls, **kw)
+        self._phisampler = SCFPhiSampler(potential, rgrid, thetagrid, phigrid, RSms=RSms, **kw)
 
     # /def
 
@@ -165,14 +170,18 @@ class SCFRSampler(rv_potential):
     """
 
     def __init__(self, potential: SCFPotential, rgrid: NDArray64, **kw: T.Any) -> None:
-        kw["a"], kw["b"] = 0, np.inf  # allowed range of r
+        kw["a"], kw["b"] = 0, np.nanmax(rgrid)  # allowed range of r
         super().__init__(potential, **kw)
 
         mgrid = np.array([potential._mass(x) for x in rgrid])  # :(
-        # manual fixes for endpoints
+        # manual fixes for endpoints and normalization
         ind = np.where(np.isnan(mgrid))[0]
         mgrid[ind[rgrid[ind] == 0]] = 0
-        mgrid[ind[rgrid[ind] == np.inf]] = 1
+        mgrid = (mgrid - np.nanmin(mgrid)) / (np.nanmax(mgrid) - np.nanmin(mgrid))  # rescale
+        infind = ind[rgrid[ind] == np.inf].squeeze()
+        mgrid[infind] = 1
+        if mgrid[infind - 1] == 1:  # munge the rescaling  TODO! do better
+            mgrid[infind - 1] -= min(1e-8, np.diff(mgrid[slice(infind - 2, infind)]) / 2)
 
         # work in zeta, not r, since it is more numerically stable
         zeta = zeta_of_r(rgrid)
@@ -261,7 +270,7 @@ class SCFThetaSampler(rv_potential):
             raise ValueError(f"Qls must be shape ({len(rgrid)}, {self._lmax})")
 
         # l = 0 : spherical symmetry
-        term0 = T.cast(NDArray64, 0.5 * (xs + 1))  # (T,)
+        term0 = T.cast(NDArray64, 0.5 * (xs + 1.0))  # (T,)
         # l = 1+ : non-symmetry
         factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
         term1p = np.sum(
@@ -404,7 +413,7 @@ class SCFThetaSampler(rv_potential):
     # /def
 
 
-# -------------------------------------------------------------------
+###############################################################################
 # Azimuth sampler
 
 
@@ -460,15 +469,18 @@ class SCFPhiSampler(rv_potential):
             raise ValueError(f"Rm, Sm must be shape ({lR}, {lT}, {self._lmax})")
 
         # l = 0 : spherical symmetry
-        term0 = pgrid[None, None, :] / (2 * np.pi)  # (1, 1, P)
+        term0 = Phis[..., 0] / (2 * np.pi)  # (1, 1, P)
         # l = 1+ : non-symmetry
         with warnings.catch_warnings():  # ignore true_divide RuntimeWarnings
             warnings.simplefilter("ignore")
             factor = 1 / Rm[:, :, :1]  # R0  (R, T, 1)  # can be inf
 
-        ms = np.arange(1, self._lmax)[None, None, None, :]  # (1, 1, 1, L)
+        ms = np.arange(1, self._lmax)[None, None, None, :]  # ({R}, {T}, {P}, L)
         term1p = np.sum(
-            (Rm[:, :, None, 1:] * np.sin(ms * Phis) + Sm[:, :, None, 1:] * (1 - np.cos(ms * Phis)))
+            (
+                (Rm[:, :, None, 1:] * np.sin(ms * Phis))
+                + (Sm[:, :, None, 1:] * (1 - np.cos(ms * Phis)))
+            )
             / (2 * np.pi * ms),
             axis=-1,
         )

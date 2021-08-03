@@ -13,12 +13,14 @@ from __future__ import annotations
 
 # BUILT-IN
 import typing as T
+from abc import ABCMeta
 
 # THIRD PARTY
 import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 from astropy.coordinates import PhysicsSphericalRepresentation
+from astropy.utils.misc import NumpyRNGContext
 from galpy.potential import SCFPotential
 from scipy._lib._util import check_random_state
 from scipy.stats import rv_continuous
@@ -34,7 +36,7 @@ __all__: T.List[str] = []
 ##############################################################################
 
 
-class rv_potential(rv_continuous):
+class rv_potential(rv_continuous, metaclass=ABCMeta):
     """
     Modified :class:`scipy.stats.rv_continuous` to use custom rvs methods.
     Made by stripping down the original scipy implementation.
@@ -201,7 +203,11 @@ class SCFSamplerBase:
     # /def
 
     def rvs(
-        self, *, size: T.Optional[int] = None, random_state: RandomLike = None
+        self,
+        *,
+        size: T.Optional[int] = None,
+        random_state: RandomLike = None,
+        vectorized=True,
     ) -> PhysicsSphericalRepresentation:
         """Sample random variates.
 
@@ -220,8 +226,26 @@ class SCFSamplerBase:
         `~astropy.coordinates.PhysicsSphericalRepresentation`
         """
         rs = self.rsampler.rvs(size=size, random_state=random_state)
-        thetas = self.thetasampler.rvs(rs, size=size, random_state=random_state)
-        phis = self.phisampler.rvs(rs, thetas, size=size, random_state=random_state)
+
+        if vectorized:
+            thetas = self.thetasampler.rvs(rs, size=size, random_state=random_state)
+            phis = self.phisampler.rvs(rs, thetas, size=size, random_state=random_state)
+
+        else:
+            # TODO! speed up
+            with NumpyRNGContext(random_state):
+                thetas = np.array(
+                    [
+                        self.thetasampler.rvs(r, size=1, random_state=None)
+                        for r in np.atleast_1d(rs)
+                    ],
+                )
+                phis = np.array(
+                    [
+                        self.phisampler.rvs(r, th, size=1, random_state=None)
+                        for r, th in zip(np.atleast_1d(rs), np.atleast_1d(thetas))
+                    ],
+                )
 
         crd = PhysicsSphericalRepresentation(
             r=rs,

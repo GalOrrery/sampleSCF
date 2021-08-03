@@ -53,9 +53,14 @@ class Test_RVPotential:
     def setup_class(self):
         self.cls = rvtestsampler
         self.cls_args = ()
+        self.cls_kwargs = {}
+        self.cls_pot_kw = {}
 
-        self.cdf_args = (0,)
+        self.cdf_args = ()
         self.cdf_kwargs = {}
+
+        self.rvs_args = ()
+        self.rvs_kwargs = {}
 
         self.cdf_time_scale = 3e-6
         self.rvs_time_scale = 1e-4
@@ -65,7 +70,8 @@ class Test_RVPotential:
     @pytest.fixture(autouse=True, scope="class")
     def sampler(self, potentials):
         """Set up r, theta, or phi sampler."""
-        sampler = self.cls(potentials, *self.cls_args)
+        kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
+        sampler = self.cls(potentials, *self.cls_args, **kw)
 
         return sampler
 
@@ -110,7 +116,7 @@ class Test_RVPotential:
         """Test that the time scales as X * size"""
         x = np.linspace(0, 1e4, size)
         tic = time.perf_counter()
-        sampler.cdf(x)
+        sampler.cdf(x, *self.cdf_args, **self.cdf_kwargs)
         toc = time.perf_counter()
 
         assert (toc - tic) < self.cdf_time_scale * size  # linear scaling
@@ -122,7 +128,7 @@ class Test_RVPotential:
     def test_rvs_time_scaling(self, sampler, size):
         """Test that the time scales as X * size"""
         tic = time.perf_counter()
-        sampler.rvs(size=size)
+        sampler.rvs(size=size, *self.rvs_args, **self.rvs_kwargs)
         toc = time.perf_counter()
 
         assert (toc - tic) < self.rvs_time_scale * size  # linear scaling
@@ -159,6 +165,7 @@ class Test_SCFSamplerBase:
     @pytest.fixture(autouse=True, scope="class")
     def sampler(self, potentials):
         """Set up r, theta, & phi sampler."""
+
         sampler = self.cls(potentials, *self.cls_args, **self.cls_kwargs)
         sampler._rsampler = rvtestsampler(potentials)
         sampler._thetasampler = rvtestsampler(potentials)
@@ -235,22 +242,25 @@ class Test_SCFSamplerBase:
 class SCFSamplerTestBase(Test_SCFSamplerBase):
     def setup_class(self):
 
-        self.expected_rvs = {
-            0: dict(r=0.548813503927, theta=1.021982822867 * u.rad, phi=0.548813503927 * u.rad),
-            1: dict(r=0.548813503927, theta=1.021982822867 * u.rad, phi=0.548813503927 * u.rad),
-            2: dict(
-                r=[0.9670298390136, 0.5472322491757, 0.9726843599648, 0.7148159936743],
-                theta=[0.603766487781, 1.023564077619, 0.598111966830, 0.855980333120] * u.rad,
-                phi=[0.9670298390136, 0.547232249175, 0.9726843599648, 0.7148159936743] * u.rad,
-            ),
-        }
+        self.cls_pot_kw = {}
+
+        # self.expected_rvs = {
+        #     0: dict(r=0.548813503927, theta=1.021982822867 * u.rad, phi=0.548813503927 * u.rad),
+        #     1: dict(r=0.548813503927, theta=1.021982822867 * u.rad, phi=0.548813503927 * u.rad),
+        #     2: dict(
+        #         r=[0.9670298390136, 0.5472322491757, 0.9726843599648, 0.7148159936743],
+        #         theta=[0.603766487781, 1.023564077619, 0.598111966830, 0.855980333120] * u.rad,
+        #         phi=[0.9670298390136, 0.547232249175, 0.9726843599648, 0.7148159936743] * u.rad,
+        #     ),
+        # }
 
     # /def
 
     @pytest.fixture(autouse=True, scope="class")
     def sampler(self, potentials):
         """Set up r, theta, phi sampler."""
-        sampler = self.cls(potentials, *self.cls_args)
+        kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
+        sampler = self.cls(potentials, *self.cls_args, **kw)
 
         return sampler
 

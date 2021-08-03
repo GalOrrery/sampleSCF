@@ -11,7 +11,7 @@ import astropy.units as u
 
 # LOCAL
 from .test_base import Test_SCFSamplerBase as SCFSamplerBaseTests
-from .test_sample_intrp import pgrid, rgrid, tgrid
+from .test_interpolated import pgrid, rgrid, tgrid
 from sample_scf import core
 
 ##############################################################################

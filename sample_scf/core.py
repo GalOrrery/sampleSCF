@@ -20,8 +20,8 @@ from galpy.potential import SCFPotential
 
 # LOCAL
 from .base import SCFSamplerBase, rv_potential
-from .sample_exact import SCFSampler as SCFSamplerExact
-from .sample_intrp import SCFSampler as SCFSamplerIntrp
+from .exact import SCFSampler as SCFSamplerExact
+from .interpolated import SCFSampler as SCFSamplerInterp
 
 __all__: T.List[str] = ["SCFSampler"]
 
@@ -54,13 +54,13 @@ class MethodsMapping(T.TypedDict):
 #
 #         if method == "interp":
 #             # LOCAL
-#             from sample_scf.sample_intrp import SCFSampler as interpcls
+#             from sample_scf.interpolated import SCFSampler as interpcls
 #
 #             bases = (interpcls,)
 #
 #         elif method == "exact":
 #             # LOCAL
-#             from sample_scf.sample_exact import SCFSampler as exactcls
+#             from sample_scf.exact import SCFSampler as exactcls
 #
 #             bases = (exactcls,)
 #         elif isinstance(method, Mapping):
@@ -110,7 +110,7 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
         else:
             sampler_cls: T.Type[SCFSamplerBase]
             if method == "interp":
-                sampler_cls = SCFSamplerIntrp
+                sampler_cls = SCFSamplerInterp
             elif method == "exact":
                 sampler_cls = SCFSamplerExact
 

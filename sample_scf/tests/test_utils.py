@@ -277,12 +277,14 @@ class Test_phiRSms:
     )
     def test_phiRSms_hernquist(self, hernquist_scf_potential, r, theta, expected):
         Rm, Sm = phiRSms(hernquist_scf_potential, r, theta)
-        assert_allclose(Rm[1:], expected[0], atol=1e-16)
-        assert_allclose(Sm[1:], expected[1], atol=1e-16)
+        assert Rm.shape == Sm.shape
+        assert Rm.shape == (1, 1, 6)
+        assert_allclose(Rm[0, 0, 1:], expected[0], atol=1e-16)
+        assert_allclose(Sm[0, 0, 1:], expected[1], atol=1e-16)
 
         if theta == 0 and r != 0:
-            assert Rm[0] != 0
-            assert Sm[0] == 0
+            assert Rm[0, 0, 0] != 0
+            assert Sm[0, 0, 0] == 0
 
     # /def
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Testing :mod:`scample_scf.sample_intrp`."""
+"""Testing :mod:`scample_scf.interpolated`."""
 
 
 ##############################################################################
@@ -18,15 +18,16 @@ from astropy.utils.misc import NumpyRNGContext
 from numpy.testing import assert_allclose
 
 # LOCAL
+from .common import SCFPhiSamplerTestBase, SCFRSamplerTestBase, SCFThetaSamplerTestBase
 from .test_base import SCFSamplerTestBase
 from .test_base import Test_RVPotential as RVPotentialTest
-from sample_scf import conftest, sample_intrp
+from sample_scf import conftest, interpolated
 from sample_scf.utils import phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
 ##############################################################################
 # PARAMETERS
 
-rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 100)))
+rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 100), [np.inf]))
 tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
 pgrid = np.linspace(0, 2 * np.pi, 30)
 
@@ -37,21 +38,22 @@ pgrid = np.linspace(0, 2 * np.pi, 30)
 
 
 class Test_SCFSampler(SCFSamplerTestBase):
-    """Test :class:`sample_scf.sample_intrp.SCFSampler`."""
+    """Test :class:`sample_scf.interpolated.SCFSampler`."""
 
     def setup_class(self):
+        super().setup_class(self)
 
-        self.cls = sample_intrp.SCFSampler
+        self.cls = interpolated.SCFSampler
         self.cls_args = (rgrid, tgrid, pgrid)
         self.cls_kwargs = {}
 
+        # TODO! make sure these are right!
         self.expected_rvs = {
-            0: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
-            1: dict(r=2.8583146808697, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+            0: dict(r=2.8473287899985, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
+            1: dict(r=2.8473287899985, theta=1.473013568997 * u.rad, phi=3.4482969442579 * u.rad),
             2: dict(
-                r=[59.15672032022, 2.842480998054, 71.71466505664, 5.471148006362],
-                theta=[0.36517953566424, 1.4761907683040, 0.33207251545636, 1.1267111320704]
-                * u.rad,
+                r=[55.79997672576021, 2.831600636133138, 66.85343958872159, 5.435971037191061],
+                theta=[0.3651795356642, 1.476190768304, 0.3320725154563, 1.126711132070] * u.rad,
                 phi=[6.076027676095, 3.438361627636, 6.11155607905, 4.491321348792] * u.rad,
             ),
         }
@@ -66,8 +68,8 @@ class Test_SCFSampler(SCFSamplerTestBase):
         "r, theta, phi, expected",
         [
             (0, 0, 0, [0, 0.5, 0]),
-            (1, 0, 0, [0.25, 0.5, 0]),
-            ([0, 1], [0, 0], [0, 0], [[0, 0.5, 0], [0.25, 0.5, 0]]),
+            (1, 0, 0, [0.2505, 0.5, 0]),
+            ([0, 1], [0, 0], [0, 0], [[0, 0.5, 0], [0.2505, 0.5, 0]]),
         ],
     )
     def test_cdf(self, sampler, r, theta, phi, expected):
@@ -108,6 +110,8 @@ class InterpRVPotentialTest(RVPotentialTest):
         # good
         newsampler = self.cls(potential, *self.cls_args)
 
+        # compare that the knots are the same when initializing a second time
+        # ie that the splines are stable
         cdfk = sampler._spl_cdf.get_knots()
         ncdfk = newsampler._spl_cdf.get_knots()
         if isinstance(cdfk, np.ndarray):  # 1D splines
@@ -137,12 +141,14 @@ class InterpRVPotentialTest(RVPotentialTest):
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFRSampler(InterpRVPotentialTest):
-    """Test :class:`sample_scf.`"""
+class Test_SCFRSampler(SCFRSamplerTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.sample_interp.SCFRSampler`"""
 
     def setup_class(self):
-        self.cls = sample_intrp.SCFRSampler
+        self.cls = interpolated.SCFRSampler
         self.cls_args = (rgrid,)
+        self.cls_kwargs = {}
+        self.cls_pot_kw = {}
 
         self.cdf_time_scale = 6e-4  # milliseconds
         self.rvs_time_scale = 2e-4  # milliseconds
@@ -167,26 +173,18 @@ class Test_SCFRSampler(InterpRVPotentialTest):
     # TODO! use hypothesis
     @pytest.mark.parametrize("r", np.random.default_rng(0).uniform(0, 1e4, 10))
     def test__cdf(self, sampler, r):
-        """Test :meth:`sample_scf.sample_intrp.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFRSampler._cdf`."""
+        super().test__cdf(sampler, r)
+
         # expected
         assert_allclose(sampler._cdf(r), sampler._spl_cdf(zeta_of_r(r)))
-
-        # args and kwargs don't matter
-        assert_allclose(sampler._cdf(r), sampler._cdf(r, 10, test=14))
-
-    # /def
-
-    def test__cdf_edge(self, sampler):
-        """Test :meth:`sample_scf.sample_intrp.SCFRSampler._cdf`."""
-        assert np.isclose(sampler._cdf(0), 0.0, 1e-20)
-        assert np.isclose(sampler._cdf(np.inf), 1.0, 1e-20)
 
     # /def
 
     # TODO! use hypothesis
     @pytest.mark.parametrize("q", np.random.default_rng(0).uniform(0, 1, 10))
     def test__ppf(self, sampler, q):
-        """Test :meth:`sample_scf.sample_intrp.SCFRSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.SCFRSampler._ppf`."""
         # expected
         assert_allclose(sampler._ppf(q), r_of_zeta(sampler._spl_ppf(q)))
 
@@ -198,41 +196,15 @@ class Test_SCFRSampler(InterpRVPotentialTest):
     @pytest.mark.parametrize(
         "size, random, expected",
         [
-            (None, 0, 2.85831468),
-            (1, 2, 1.94376617),
-            ((3, 1), 4, (59.15672032, 2.842481, 71.71466506)),
-            ((3, 1), None, (59.15672032, 2.842481, 71.71466506)),
+            (None, 0, 2.84732879),
+            (1, 2, 1.938060987),
+            ((3, 1), 4, (55.79997672, 2.831600636, 66.85343958)),
+            ((3, 1), None, (55.79997672, 2.831600636, 66.85343958)),
         ],
     )
     def test_rvs(self, sampler, size, random, expected):
-        """Test :meth:`sample_scf.sample_intrp.SCFRSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.SCFRSampler.rvs`."""
         super().test_rvs(sampler, size, random, expected)
-
-    # /def
-
-    # ===============================================================
-    # Time Scaling Tests
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_cdf_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        x = np.linspace(0, 1e4, size)
-        tic = time.perf_counter()
-        sampler.cdf(x)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.cdf_time_scale * size  # linear scaling
-
-    # /def
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_rvs_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        tic = time.perf_counter()
-        sampler.rvs(size=size)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.rvs_time_scale * size  # linear scaling
 
     # /def
 
@@ -328,19 +300,17 @@ class Test_SCFRSampler(InterpRVPotentialTest):
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFThetaSampler(InterpRVPotentialTest):
-    """Test :class:`sample_scf.sample_intrp.SCFThetaSampler`."""
+class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.interpolated.SCFThetaSampler`."""
 
     def setup_class(self):
-        self.cls = sample_intrp.SCFThetaSampler
+        super().setup_class(self)
+
+        self.cls = interpolated.SCFThetaSampler
         self.cls_args = (rgrid, tgrid)
 
         self.cdf_time_scale = 3e-4
         self.rvs_time_scale = 6e-4
-
-        self.theory = dict(
-            hernquist=conftest.hernquist_df,
-        )
 
     # /def
 
@@ -369,7 +339,7 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
         ],
     )
     def test__cdf(self, sampler, x, zeta):
-        """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._cdf`."""
         # expected
         assert_allclose(sampler._cdf(x, zeta=zeta), sampler._spl_cdf(zeta, x, grid=False))
 
@@ -380,7 +350,7 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
 
     @pytest.mark.parametrize("zeta", np.random.default_rng(0).uniform(-1, 1, 10))
     def test__cdf_edge(self, sampler, zeta):
-        """Test :meth:`sample_scf.sample_intrp.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFRSampler._cdf`."""
         assert np.isclose(sampler._cdf(-1, zeta=zeta), 0.0, atol=1e-16)
         assert np.isclose(sampler._cdf(1, zeta=zeta), 1.0, atol=1e-16)
 
@@ -396,7 +366,7 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
         ],
     )
     def test_cdf(self, sampler, theta, r):
-        """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler.cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFThetaSampler.cdf`."""
         assert_allclose(
             sampler.cdf(theta, r),
             sampler._spl_cdf(zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
@@ -406,48 +376,22 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
 
     @pytest.mark.skip("TODO!")
     def test__ppf(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._ppf`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler._rvs`."""
+        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._rvs`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFThetaSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.SCFThetaSampler.rvs`."""
         assert False
-
-    # /def
-
-    # ===============================================================
-    # Time Scaling Tests
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_cdf_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        x = np.linspace(-np.pi / 2, np.pi / 2, size)
-        tic = time.perf_counter()
-        sampler.cdf(x, r=10)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.cdf_time_scale * size  # linear scaling
-
-    # /def
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_rvs_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        tic = time.perf_counter()
-        sampler.rvs(size=size, r=10)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.rvs_time_scale * size  # linear scaling
 
     # /def
 
@@ -545,19 +489,17 @@ class Test_SCFThetaSampler(InterpRVPotentialTest):
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFPhiSampler(InterpRVPotentialTest):
-    """Test :class:`sample_scf.sample_intrp.SCFPhiSampler`."""
+class Test_SCFPhiSampler(SCFPhiSamplerTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.interpolated.SCFPhiSampler`."""
 
     def setup_class(self):
-        self.cls = sample_intrp.SCFPhiSampler
+        super().setup_class(self)
+
+        self.cls = interpolated.SCFPhiSampler
         self.cls_args = (rgrid, tgrid, pgrid)
 
         self.cdf_time_scale = 12e-4
         self.rvs_time_scale = 12e-4
-
-        self.theory = dict(
-            hernquist=conftest.hernquist_df,
-        )
 
     # /def
 
@@ -565,7 +507,7 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
     # Method Tests
 
     def test___init__(self, sampler):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._cdf`."""
         # super().test___init__(sampler)  # doesn't work  TODO!
 
         # a shape mismatch
@@ -577,62 +519,36 @@ class Test_SCFPhiSampler(InterpRVPotentialTest):
 
     @pytest.mark.skip("TODO!")
     def test__cdf(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._cdf`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test_cdf(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler.cdf`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler.cdf`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test__ppf(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._ppf`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler._rvs`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._rvs`."""
         assert False
 
     # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.sample_intrp.SCFPhiSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.SCFPhiSampler.rvs`."""
         assert False
-
-    # /def
-
-    # ===============================================================
-    # Time Scaling Tests
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_cdf_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        x = np.linspace(0, 2 * np.pi, size)
-        tic = time.perf_counter()
-        sampler.cdf(x, r=10, theta=np.pi / 6)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.cdf_time_scale * size  # linear scaling
-
-    # /def
-
-    @pytest.mark.parametrize("size", [1, 10, 100, 1000, 10000])
-    def test_rvs_time_scaling(self, sampler, size):
-        """Test that the time scales as X * size"""
-        tic = time.perf_counter()
-        sampler.rvs(size=size, r=10, theta=np.pi / 6)
-        toc = time.perf_counter()
-
-        assert (toc - tic) < self.rvs_time_scale * size  # linear scaling
 
     # /def
 

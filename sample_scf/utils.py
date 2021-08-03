@@ -313,9 +313,7 @@ def phiRSms(
     Returns
     -------
     Rm, Sm : ndarray[float]
-        Azimuthal weighting factors. Will have shape (len(r), len(theta), L),
-        with :meth:`numpy.ndarray.squeeze` applied to eliminate extraneous
-        dimensions, e.g. scalar 'r'
+        Azimuthal weighting factors. Shape (len(r), len(theta), L).
     """
     # need r and theta to be arrays. The extra dimensions will be 'squeeze'd.
     rgrid = atleast_1d(r)
@@ -326,7 +324,7 @@ def phiRSms(
     lmax: int
     nmax, lmax = pot._Acos.shape[:2]
     rhoTilde = nan_to_num(
-        array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid]),
+        array([pot._rhoTilde(r, N=nmax, L=lmax) for r in rgrid]),  # todo! vectorize
         nan=0,
         posinf=np.inf,
         neginf=-np.inf,
@@ -334,9 +332,7 @@ def phiRSms(
 
     # pass to actual calculator, which takes the matrices and r, theta grids.
     Rm, Sm = _phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
-
-    # remove extra dimensions from azimuthal factors
-    return Rm.squeeze(), Sm.squeeze()
+    return Rm, Sm
 
 
 # /def
