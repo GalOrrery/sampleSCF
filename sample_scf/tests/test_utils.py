@@ -46,8 +46,6 @@ class Test_zeta_of_r:
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
             assert_allclose(zeta_of_r(r), expected)
 
-    # /def
-
     @pytest.mark.parametrize(
         "r, expected",
         [
@@ -60,17 +58,10 @@ class Test_zeta_of_r:
         with pytest.warns(RuntimeWarning):
             assert_allclose(zeta_of_r(r), expected)
 
-    # /def
-
     @pytest.mark.parametrize("r", [0, 1, np.inf, [0, 1, np.inf]])
     def test_roundtrip(self, r):
         """Test zeta and r round trip. Note that Quantities don't round trip."""
         assert_allclose(r_of_zeta(zeta_of_r(r)), r)
-
-    # /def
-
-
-# /class
 
 
 # -------------------------------------------------------------------
@@ -99,8 +90,6 @@ class Test_r_of_zeta:
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
             assert_allclose(r_of_zeta(zeta), expected)
 
-    # /def
-
     @pytest.mark.parametrize(
         "zeta, expected, warns",
         [
@@ -111,8 +100,6 @@ class Test_r_of_zeta:
         """Test when input array."""
         with pytest.warns(warns) if warns is not False else contextlib.nullcontext():
             assert_allclose(r_of_zeta(zeta), expected)
-
-    # /def
 
     @pytest.mark.parametrize(
         "zeta, expected, unit",
@@ -126,17 +113,10 @@ class Test_r_of_zeta:
         """Test when input units."""
         assert_allclose(r_of_zeta(zeta, unit=unit), expected)
 
-    # /def
-
     @pytest.mark.parametrize("zeta", [-1, 0, 1, [-1, 0, 1]])
     def test_roundtrip(self, zeta):
         """Test zeta and r round trip. Note that Quantities don't round trip."""
         assert_allclose(zeta_of_r(r_of_zeta(zeta)), zeta)
-
-    # /def
-
-
-# /class
 
 
 # -------------------------------------------------------------------
@@ -162,17 +142,11 @@ class Test_x_of_theta:
     def test_x_of_theta(self, theta, expected):
         assert_allclose(x_of_theta(theta), expected, atol=1e-16)
 
-    # /def
-
     @pytest.mark.parametrize("theta", [-np.pi / 2, 0, np.pi / 2, [-np.pi / 2, 0, np.pi / 2]])
     def test_roundtrip(self, theta):
         """Test theta and x round trip. Note that Quantities don't round trip."""
         assert_allclose(theta_of_x(x_of_theta(theta << u.rad)), theta)
 
-    # /def
-
-
-# /class
 
 # -------------------------------------------------------------------
 
@@ -192,8 +166,6 @@ class Test_theta_of_x:
     def test_theta_of_x(self, x, expected):
         assert_allclose(theta_of_x(x), expected)
 
-    # /def
-
     @pytest.mark.parametrize(
         "x, expected, unit",
         [
@@ -206,14 +178,10 @@ class Test_theta_of_x:
         """Test when input units."""
         assert_allclose(theta_of_x(x, unit=unit), expected)
 
-    # /def
-
     @pytest.mark.parametrize("x", [-1, 0, 1, [-1, 0, 1]])
     def test_roundtrip(self, x):
         """Test x and theta round trip. Note that Quantities don't round trip."""
         assert_allclose(x_of_theta(theta_of_x(x)), x, atol=1e-16)
-
-    # /def
 
 
 # -------------------------------------------------------------------
@@ -234,16 +202,10 @@ class Test_thetaQls:
         assert np.isclose(Qls[0], expected)
         assert_allclose(Qls[1:], 0)
 
-    # /def
-
     @pytest.mark.skip("TODO!")
     def test_nfw(self, nfw_scf_potential):
         assert False
 
-    # /def
-
-
-# /class
 
 # -------------------------------------------------------------------
 
@@ -276,7 +238,7 @@ class Test_phiRSms:
         ],
     )
     def test_phiRSms_hernquist(self, hernquist_scf_potential, r, theta, expected):
-        Rm, Sm = phiRSms(hernquist_scf_potential, r, theta)
+        Rm, Sm = phiRSms(hernquist_scf_potential, r, theta, warn=False)
         assert Rm.shape == Sm.shape
         assert Rm.shape == (1, 1, 6)
         assert_allclose(Rm[0, 0, 1:], expected[0], atol=1e-16)
@@ -285,11 +247,3 @@ class Test_phiRSms:
         if theta == 0 and r != 0:
             assert Rm[0, 0, 0] != 0
             assert Sm[0, 0, 0] == 0
-
-    # /def
-
-
-# /class
-
-##############################################################################
-# END

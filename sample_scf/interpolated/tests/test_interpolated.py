@@ -15,9 +15,8 @@ from astropy.utils.misc import NumpyRNGContext
 from numpy.testing import assert_allclose
 
 # LOCAL
-from .common import SCFPhiSamplerTestBase, SCFRSamplerTestBase, SCFThetaSamplerTestBase
-from .test_base import SCFSamplerTestBase
-from .test_base import Test_RVPotential as RVPotentialTest
+from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
+from .test_base import RVPotentialTest, SCFSamplerTestBase
 from sample_scf import conftest, interpolated
 from sample_scf.utils import phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
 
@@ -43,6 +42,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
         self.cls = interpolated.SCFSampler
         self.cls_args = (rgrid, tgrid, pgrid)
         self.cls_kwargs = {}
+        self.cls_pot_kw = {}
 
         # TODO! make sure these are right!
         self.expected_rvs = {
@@ -54,8 +54,6 @@ class Test_SCFSampler(SCFSamplerTestBase):
                 phi=[6.076027676095, 3.438361627636, 6.11155607905, 4.491321348792] * u.rad,
             ),
         }
-
-    # /def
 
     # ===============================================================
     # Method Tests
@@ -73,8 +71,6 @@ class Test_SCFSampler(SCFSamplerTestBase):
         """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 
-    # /def
-
     # ===============================================================
     # Plot Tests
 
@@ -82,22 +78,16 @@ class Test_SCFSampler(SCFSamplerTestBase):
     def test_interp_cdf_plot(self):
         assert False
 
-    # /def
-
     @pytest.mark.skip("TODO!")
     def test_interp_sampling_plot(self):
         assert False
 
-    # /def
-
-
-# /class
 
 ##############################################################################
 
 
 class InterpRVPotentialTest(RVPotentialTest):
-    def test___init__(self, sampler):
+    def test_init(self, sampler):
         """Test initialization."""
         potential = sampler._potential
 
@@ -129,20 +119,17 @@ class InterpRVPotentialTest(RVPotentialTest):
         with pytest.raises(TypeError, match="SCFPotential"):
             self.cls(None, *self.cls_args)
 
-    # /def
-
-
-# /class
-
 
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFRSampler(SCFRSamplerTestBase, InterpRVPotentialTest):
-    """Test :class:`sample_scf.sample_interp.SCFRSampler`"""
+class Test_r_distribution(r_distributionTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.sample_interp.r_distribution`"""
 
     def setup_class(self):
-        self.cls = interpolated.SCFRSampler
+        super().setup_class(self)
+
+        self.cls = interpolated.r_distribution
         self.cls_args = (rgrid,)
         self.cls_kwargs = {}
         self.cls_pot_kw = {}
@@ -150,45 +137,33 @@ class Test_SCFRSampler(SCFRSamplerTestBase, InterpRVPotentialTest):
         self.cdf_time_scale = 6e-4  # milliseconds
         self.rvs_time_scale = 2e-4  # milliseconds
 
-        self.theory = dict(
-            hernquist=conftest.hernquist_df,
-        )
-
-    # /def
-
     # ===============================================================
     # Method Tests
 
-    def test___init__(self, sampler):
+    def test_init(self, sampler):
         """Test initialization."""
-        super().test___init__(sampler)
+        super().test_init(sampler)
 
         # TODO! test mgrid endpoints, cdf, and ppf
-
-    # /def
 
     # TODO! use hypothesis
     @pytest.mark.parametrize("r", np.random.default_rng(0).uniform(0, 1e4, 10))
     def test__cdf(self, sampler, r):
-        """Test :meth:`sample_scf.interpolated.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.r_distribution._cdf`."""
         super().test__cdf(sampler, r)
 
         # expected
         assert_allclose(sampler._cdf(r), sampler._spl_cdf(zeta_of_r(r)))
 
-    # /def
-
     # TODO! use hypothesis
     @pytest.mark.parametrize("q", np.random.default_rng(0).uniform(0, 1, 10))
     def test__ppf(self, sampler, q):
-        """Test :meth:`sample_scf.interpolated.SCFRSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.r_distribution._ppf`."""
         # expected
         assert_allclose(sampler._ppf(q), r_of_zeta(sampler._spl_ppf(q)))
 
         # args and kwargs don't matter
         assert_allclose(sampler._ppf(q), sampler._ppf(q, 10, test=14))
-
-    # /def
 
     @pytest.mark.parametrize(
         "size, random, expected",
@@ -200,10 +175,8 @@ class Test_SCFRSampler(SCFRSamplerTestBase, InterpRVPotentialTest):
         ],
     )
     def test_rvs(self, sampler, size, random, expected):
-        """Test :meth:`sample_scf.interpolated.SCFRSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.r_distribution.rvs`."""
         super().test_rvs(sampler, size, random, expected)
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -251,79 +224,66 @@ class Test_SCFRSampler(SCFRSamplerTestBase, InterpRVPotentialTest):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_interp_r_sampling_plot(self, request, sampler):
+    def test_interp_r_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e6))
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e6)).r()
-            theory = theory[theory < 1e4]
+            theory = self.theory[sampler._potential].sample(n=int(1e6)).r()
+            theory = theory[theory < 1e4 * u.kpc]
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
-        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        _, bins, *_ = ax.hist(
+            sample, bins=30, log=True, alpha=0.5, label="SCF sample", c="tab:blue"
+        )
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.kpc),
             bins=bins,
             log=True,
-            alpha=0.5,
-            label="Hernquist theoretical",
+            edgecolor="black",
+            linewidth=1.2,
+            fc=(1, 0, 0, 0.0),
+            label="Theoretical",
         )
         ax.legend()
         fig.tight_layout()
 
         return fig
 
-    # /def
-
-
-# /class
 
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
-    """Test :class:`sample_scf.interpolated.SCFThetaSampler`."""
+class Test_theta_distribution(theta_distributionTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.interpolated.theta_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.SCFThetaSampler
+        self.cls = interpolated.theta_distribution
         self.cls_args = (rgrid, tgrid)
 
         self.cdf_time_scale = 3e-4
         self.rvs_time_scale = 6e-4
 
-    # /def
-
     # ===============================================================
     # Method Tests
 
-    def test___init__(self, sampler):
+    def test_init(self, sampler):
         """Test initialization."""
-        super().test___init__(sampler)
+        super().test_init(sampler)
 
         # a shape mismatch
         Qls = thetaQls(sampler._potential, rgrid[1:-1])
         with pytest.raises(ValueError, match="Qls must be shape"):
             sampler.__class__(sampler._potential, rgrid, tgrid, Qls=Qls)
-
-    # /def
 
     # TODO! use hypothesis
     @pytest.mark.parametrize(
@@ -336,22 +296,18 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
         ],
     )
     def test__cdf(self, sampler, x, zeta):
-        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.theta_distribution._cdf`."""
         # expected
         assert_allclose(sampler._cdf(x, zeta=zeta), sampler._spl_cdf(zeta, x, grid=False))
 
         # args and kwargs don't matter
         assert_allclose(sampler._cdf(x, zeta=zeta), sampler._cdf(x, 10, zeta=zeta, test=14))
 
-    # /def
-
     @pytest.mark.parametrize("zeta", np.random.default_rng(0).uniform(-1, 1, 10))
     def test__cdf_edge(self, sampler, zeta):
-        """Test :meth:`sample_scf.interpolated.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.r_distribution._cdf`."""
         assert np.isclose(sampler._cdf(-1, zeta=zeta), 0.0, atol=1e-16)
         assert np.isclose(sampler._cdf(1, zeta=zeta), 1.0, atol=1e-16)
-
-    # /def
 
     @pytest.mark.parametrize(
         "theta, r",
@@ -363,34 +319,26 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
         ],
     )
     def test_cdf(self, sampler, theta, r):
-        """Test :meth:`sample_scf.interpolated.SCFThetaSampler.cdf`."""
+        """Test :meth:`sample_scf.interpolated.theta_distribution.cdf`."""
         assert_allclose(
             sampler.cdf(theta, r),
             sampler._spl_cdf(zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
         )
 
-    # /def
-
     @pytest.mark.skip("TODO!")
     def test__ppf(self):
-        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.theta_distribution._ppf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.interpolated.SCFThetaSampler._rvs`."""
+        """Test :meth:`sample_scf.interpolated.theta_distribution._rvs`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.interpolated.SCFThetaSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.theta_distribution.rvs`."""
         assert False
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -436,26 +384,18 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_interp_theta_sampling_plot(self, request, sampler):
+    def test_interp_theta_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e6), r=10)
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
+            theory = self.theory[sampler._potential].sample(n=int(1e6)).theta()
+            theory -= np.pi / 2 * u.rad  # adjust range back
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -464,90 +404,76 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase, InterpRVPotentialTest):
             xlabel=r"$\theta$",
             ylabel="frequency",
         )
-        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        _, bins, *_ = ax.hist(
+            sample, bins=30, log=True, label="SCF sample", color="tab:blue", alpha=0.5
+        )
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.rad),
             bins=bins,
             log=True,
-            alpha=0.5,
-            label="Hernquist theoretical",
+            edgecolor="black",
+            linewidth=1.2,
+            fc=(1, 0, 0, 0.0),
+            label="Theoretical",
         )
         ax.legend()
         fig.tight_layout()
 
         return fig
 
-    # /def
-
-
-# /class
 
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFPhiSampler(SCFPhiSamplerTestBase, InterpRVPotentialTest):
-    """Test :class:`sample_scf.interpolated.SCFPhiSampler`."""
+class Test_phi_distribution(phi_distributionTestBase, InterpRVPotentialTest):
+    """Test :class:`sample_scf.interpolated.phi_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.SCFPhiSampler
+        self.cls = interpolated.phi_distribution
         self.cls_args = (rgrid, tgrid, pgrid)
 
         self.cdf_time_scale = 12e-4
         self.rvs_time_scale = 12e-4
 
-    # /def
-
     # ===============================================================
     # Method Tests
 
-    def test___init__(self, sampler):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._cdf`."""
-        # super().test___init__(sampler)  # doesn't work  TODO!
+    def test_init(self, sampler):
+        """Test :meth:`sample_scf.interpolated.phi_distribution._cdf`."""
+        # super().test_init(sampler)  # doesn't work  TODO!
 
         # a shape mismatch
-        RSms = phiRSms(sampler._potential, rgrid[1:-1], tgrid[1:-1])
+        RSms = phiRSms(sampler._potential, rgrid[1:-1], tgrid[1:-1], warn=False)
         with pytest.raises(ValueError, match="Rm, Sm must be shape"):
             sampler.__class__(sampler._potential, rgrid, tgrid, pgrid, RSms=RSms)
 
-    # /def
-
     @pytest.mark.skip("TODO!")
     def test__cdf(self):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._cdf`."""
+        """Test :meth:`sample_scf.interpolated.phi_distribution._cdf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_cdf(self):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler.cdf`."""
+        """Test :meth:`sample_scf.interpolated.phi_distribution.cdf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test__ppf(self):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._ppf`."""
+        """Test :meth:`sample_scf.interpolated.phi_distribution._ppf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler._rvs`."""
+        """Test :meth:`sample_scf.interpolated.phi_distribution._rvs`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.interpolated.SCFPhiSampler.rvs`."""
+        """Test :meth:`sample_scf.interpolated.phi_distribution.rvs`."""
         assert False
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -578,26 +504,17 @@ class Test_SCFPhiSampler(SCFPhiSamplerTestBase, InterpRVPotentialTest):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_interp_phi_sampling_plot(self, request, sampler):
+    def test_interp_phi_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e6), r=10, theta=np.pi / 6)
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e6)).phi()
+            theory = self.theory[sampler._potential].sample(n=int(1e6)).phi()
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -606,24 +523,20 @@ class Test_SCFPhiSampler(SCFPhiSamplerTestBase, InterpRVPotentialTest):
             xlabel=r"$\phi$",
             ylabel="frequency",
         )
-        _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
+        _, bins, *_ = ax.hist(
+            sample, bins=30, log=True, alpha=0.5, c="tab:blue", label="SCF sample"
+        )
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.rad),
             bins=bins,
             log=True,
-            alpha=0.5,
-            label="Hernquist theoretical",
+            edgecolor="black",
+            linewidth=1.2,
+            fc=(1, 0, 0, 0.0),
+            label="Theoretical",
         )
         ax.legend()
         fig.tight_layout()
 
         return fig
-
-    # /def
-
-
-# /class
-
-##############################################################################
-# END

@@ -13,6 +13,8 @@ import sys
 from extension_helpers import get_extensions
 from setuptools import setup
 
+# from mypyc.build import mypycify
+
 # First provide helpful messages if contributors try and run legacy commands
 # for tests or docs.
 
@@ -77,10 +79,23 @@ except Exception:
     version = '{version}'
 """.lstrip()
 
+# # TODO! model after https://github.com/python/mypy/blob/master/setup.py
+# mypyc_targets = [
+#     os.path.join("sample_scf", x)
+#     for x in ("__init__.py", "base.py", "core.py", "utils.py", "interpolated.py",
+#               "exact.py")
+# ]
+# # The targets come out of file system apis in an unspecified
+# # order. Sort them so that the mypyc output is deterministic.
+# mypyc_targets.sort()
+
 setup(
     use_scm_version={
         "write_to": os.path.join("sample_scf", "version.py"),
         "write_to_template": VERSION_TEMPLATE,
     },
     ext_modules=get_extensions(),
+    # name="sample_scf",
+    # packages=["sample_scf"],
+    # ext_modules=mypycify(["--disallow-untyped-defs", *mypyc_targets]),
 )

@@ -12,25 +12,25 @@ Description.
 from __future__ import annotations
 
 # BUILT-IN
-import typing as T
 from collections.abc import Mapping
+from typing import Any, Literal, Optional, Type, TypedDict, Union
 
 # THIRD PARTY
 from galpy.potential import SCFPotential
 
 # LOCAL
 from .base import SCFSamplerBase, rv_potential
-from .exact import SCFSampler as SCFSamplerExact
-from .interpolated import SCFSampler as SCFSamplerInterp
+from .exact import ExactSCFSampler
+from .interpolated import InterpolatedSCFSampler
 
-__all__: T.List[str] = ["SCFSampler"]
+__all__ = ["SCFSampler"]
 
 
 ##############################################################################
 # Parameters
 
 
-class MethodsMapping(T.TypedDict):
+class MethodsMapping(TypedDict):
     r: rv_potential
     theta: rv_potential
     phi: rv_potential
@@ -39,42 +39,6 @@ class MethodsMapping(T.TypedDict):
 ##############################################################################
 # CODE
 ##############################################################################
-
-
-# class SCFSamplerSwitch(ABCMeta):
-#     def __new__(
-#         cls: T.Type[SCFSamplerSwitch],
-#         name: str,
-#         bases: T.Tuple[type, ...],
-#         dct: T.Dict[str, T.Any],
-#         **kwds: T.Any
-#     ) -> SCFSamplerSwitch:
-#
-#         method: str = dct["method"]
-#
-#         if method == "interp":
-#             # LOCAL
-#             from sample_scf.interpolated import SCFSampler as interpcls
-#
-#             bases = (interpcls,)
-#
-#         elif method == "exact":
-#             # LOCAL
-#             from sample_scf.exact import SCFSampler as exactcls
-#
-#             bases = (exactcls,)
-#         elif isinstance(method, Mapping):
-#             pass
-#         else:
-#             raise ValueError("`method` must be {'interp', 'exact'} or mapping.")
-#
-#         self = super().__new__(cls, name, bases, dct)
-#         return self
-#
-#     # /def
-
-
-# /class
 
 
 class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
@@ -97,37 +61,32 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
     def __init__(
         self,
         potential: SCFPotential,
-        method: T.Union[T.Literal["interp", "exact"], MethodsMapping],
-        **kwargs: T.Any
+        method: Union[Literal["interp", "exact"], MethodsMapping],
+        **kwargs: Any,
     ) -> None:
         super().__init__(potential)
 
-        if isinstance(method, Mapping):
+        if isinstance(method, Mapping):  # mix and match exact and interpolated
             sampler = None
             rsampler = method["r"](potential, **kwargs)
             thetasampler = method["theta"](potential, **kwargs)
             phisampler = method["phi"](potential, **kwargs)
-        else:
-            sampler_cls: T.Type[SCFSamplerBase]
+
+        else:  # either exact or interpolated
+            sampler_cls: Type[SCFSamplerBase]
             if method == "interp":
-                sampler_cls = SCFSamplerInterp
+                sampler_cls = InterpolatedSCFSampler
             elif method == "exact":
-                sampler_cls = SCFSamplerExact
+                sampler_cls = ExactSCFSampler
+            else:
+                raise ValueError(f"method = {method} not in " + "{'interp', 'exact'}")
 
             sampler = sampler_cls(potential, **kwargs)
             rsampler = sampler.rsampler
             thetasampler = sampler.thetasampler
             phisampler = sampler.phisampler
 
-        self._sampler: T.Optional[SCFSamplerBase] = sampler
-        self._rsampler = rsampler
-        self._thetasampler = thetasampler
-        self._phisampler = phisampler
-
-    # /def
-
-
-# /class
-
-##############################################################################
-# END
+        self._sampler: Optional[SCFSamplerBase] = sampler
+        self._r_distribution = rsampler
+        self._theta_distribution = thetasampler
+        self._phi_distribution = phisampler

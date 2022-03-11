@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Base class for sampling from an SCF Potential.
-
-Description.
-
-"""
+"""Base class for sampling from an SCF Potential."""
 
 ##############################################################################
 # IMPORTS
@@ -12,23 +8,23 @@ Description.
 from __future__ import annotations
 
 # BUILT-IN
-import typing as T
 from abc import ABCMeta
+from typing import Optional, Tuple, Union
 
 # THIRD PARTY
 import astropy.units as u
 import numpy as np
-import numpy.typing as npt
 from astropy.coordinates import PhysicsSphericalRepresentation
 from astropy.utils.misc import NumpyRNGContext
 from galpy.potential import SCFPotential
+from numpy.typing import ArrayLike
 from scipy._lib._util import check_random_state
 from scipy.stats import rv_continuous
 
 # LOCAL
-from ._typing import NDArray64, RandomLike
+from sample_scf._typing import NDArrayF, RandomGenerator, RandomLike
 
-__all__: T.List[str] = []
+__all__ = []
 
 
 ##############################################################################
@@ -38,24 +34,80 @@ __all__: T.List[str] = []
 
 class rv_potential(rv_continuous, metaclass=ABCMeta):
     """
-    Modified :class:`scipy.stats.rv_continuous` to use custom rvs methods.
+    Modified :class:`scipy.stats.rv_continuous` to use custom ``rvs`` methods.
     Made by stripping down the original scipy implementation.
     See :class:`scipy.stats.rv_continuous` for details.
+
+    Parameters
+    ----------
+    `rv_continuous` is a base class to construct specific distribution classes
+    and instances for continuous random variables. It cannot be used
+    directly as a distribution.
+
+    Parameters
+    ----------
+    potential : `galpy.potential.SCFPotential`
+        The potential from which to sample.
+    momtype : int, optional
+        The type of generic moment calculation to use: 0 for pdf, 1 (default)
+        for ppf.
+    a : float, optional
+        Lower bound of the support of the distribution, default is minus
+        infinity.
+    b : float, optional
+        Upper bound of the support of the distribution, default is plus
+        infinity.
+    xtol : float, optional
+        The tolerance for fixed point calculation for generic ppf.
+    badvalue : float, optional
+        The value in a result arrays that indicates a value that for which
+        some argument restriction is violated, default is np.nan.
+    name : str, optional
+        The name of the instance. This string is used to construct the default
+        example for distributions.
+    longname : str, optional
+        This string is used as part of the first line of the docstring returned
+        when a subclass has no docstring of its own. Note: `longname` exists
+        for backwards compatibility, do not use for new subclasses.
+    shapes : str, optional
+        The shape of the distribution. For example ``"m, n"`` for a
+        distribution that takes two integers as the two shape arguments for all
+        its methods. If not provided, shape parameters will be inferred from
+        the signature of the private methods, ``_pdf`` and ``_cdf`` of the
+        instance.
+    extradoc :  str, optional, deprecated
+        This string is used as the last part of the docstring returned when a
+        subclass has no docstring of its own. Note: `extradoc` exists for
+        backwards compatibility, do not use for new subclasses.
+    seed : {None, int, `numpy.random.Generator`,
+            `numpy.random.RandomState`}, optional
+
+        If `seed` is None (or `np.random`), the `numpy.random.RandomState`
+        singleton is used.
+        If `seed` is an int, a new ``RandomState`` instance is used,
+        seeded with `seed`.
+        If `seed` is already a ``Generator`` or ``RandomState`` instance then
+        that instance is used.
     """
+
+    _random_state: RandomGenerator
+    _potential: SCFPotential
+    _nmax: int
+    _lmax: int
 
     def __init__(
         self,
         potential: SCFPotential,
         momtype: int = 1,
-        a: T.Optional[float] = None,
-        b: T.Optional[float] = None,
+        a: Optional[float] = None,
+        b: Optional[float] = None,
         xtol: float = 1e-14,
-        badvalue: T.Optional[float] = None,
-        name: T.Optional[str] = None,
-        longname: T.Optional[str] = None,
-        shapes: T.Optional[T.Tuple[int, ...]] = None,
-        extradoc: T.Optional[str] = None,
-        seed: T.Optional[int] = None,
+        badvalue: Optional[float] = None,
+        name: Optional[str] = None,
+        longname: Optional[str] = None,
+        shapes: Optional[Tuple[int, ...]] = None,
+        extradoc: Optional[str] = None,
+        seed: Optional[int] = None,
     ):
         super().__init__(
             momtype=momtype,
@@ -74,17 +126,28 @@ class rv_potential(rv_continuous, metaclass=ABCMeta):
             raise TypeError(
                 f"potential must be <galpy.potential.SCFPotential>, not {type(potential)}",
             )
-        self._potential: SCFPotential = potential
+        self._potential = potential
         self._nmax, self._lmax = potential._Acos.shape[:2]
 
-    # /def
+    @property
+    def potential(self) -> SCFPotential:
+        """The potential from which to sample"""
+        return self._potential
+
+    @property
+    def nmax(self) -> int:
+        return self._nmax
+
+    @property
+    def lmax(self) -> int:
+        return self._lmax
 
     def rvs(
         self,
-        *args: T.Union[float, npt.ArrayLike],
-        size: T.Optional[int] = None,
+        *args: Union[np.floating, ArrayLike],
+        size: Optional[int] = None,
         random_state: RandomLike = None,
-    ) -> NDArray64:
+    ) -> NDArrayF:
         """Random variate sampler.
 
         Parameters
@@ -103,32 +166,46 @@ class rv_potential(rv_continuous, metaclass=ABCMeta):
         ndarray[float]
             Shape 'size'.
         """
+        # copied from `scipy`
         # extra gymnastics needed for a custom random_state
-        rndm: np.random.RandomState
+        rndm: RandomGenerator
         if random_state is not None:
             random_state_saved = self._random_state
             rndm = check_random_state(random_state)
         else:
             rndm = self._random_state
 
-        vals: NDArray64 = self._rvs(*args, size=size, random_state=rndm)
+        # go directly to `_rvs`
+        vals: NDArrayF = self._rvs(*args, size=size, random_state=rndm)
 
+        # copied from `scipy`
         # do not forget to restore the _random_state
         if random_state is not None:
-            self._random_state: np.random.RandomState = random_state_saved
+            self._random_state = random_state_saved
 
         return vals.squeeze()
-
-    # /def
-
-
-# /class
 
 
 # -------------------------------------------------------------------
 
 
-class SCFSamplerBase:
+class r_distribution_base(rv_potential):
+    """Sample radial coordinate from an SCF potential.
+
+    The potential must have a convergent mass function.
+
+    Parameters
+    ----------
+    potential : `galpy.potential.SCFPotential`
+    """
+
+    pass
+
+
+##############################################################################
+
+
+class SCFSamplerBase(metaclass=ABCMeta):
     """Sample SCF in spherical coordinates.
 
     The coordinate system is:
@@ -141,45 +218,47 @@ class SCFSamplerBase:
     pot : `galpy.potential.SCFPotential`
     """
 
-    def __init__(
-        self,
-        pot: SCFPotential,
-    ):
-        self._pot = pot
+    _potential: SCFPotential
+    _r_distribution: rv_potential
+    _theta_distribution: rv_potential
+    _phi_distribution: rv_potential
 
-    # /def
+    def __init__(self, potential: SCFPotential):
+        potential.turn_physical_on()
+        self._potential = potential
 
-    _rsampler: rv_potential
-    _thetasampler: rv_potential
-    _phisampler: rv_potential
+        # child classes set up the samplers
+
+    # -----------------------------------------------------
+
+    @property
+    def potential(self) -> SCFPotential:
+        """The SCF Potential instance."""
+        return self._potential
 
     @property
     def rsampler(self) -> rv_potential:
         """Radial coordinate sampler."""
-        return self._rsampler
-
-    # /def
+        return self._r_distribution
 
     @property
     def thetasampler(self) -> rv_potential:
         """Inclination coordinate sampler."""
-        return self._thetasampler
-
-    # /def
+        return self._theta_distribution
 
     @property
     def phisampler(self) -> rv_potential:
         """Azimuthal coordinate sampler."""
-        return self._phisampler
+        return self._phi_distribution
 
-    # /def
+    # -----------------------------------------------------
 
     def cdf(
         self,
-        r: npt.ArrayLike,
-        theta: npt.ArrayLike,
-        phi: npt.ArrayLike,
-    ) -> NDArray64:
+        r: ArrayLike,
+        theta: ArrayLike,
+        phi: ArrayLike,
+    ) -> NDArrayF:
         """
         Cumulative Distribution Functions in r, theta(r), phi(r, theta)
 
@@ -198,17 +277,15 @@ class SCFSamplerBase:
         theta = np.asanyarray(theta, dtype=float)
         phi = np.asanyarray(phi, dtype=float)
 
-        R: NDArray64 = self.rsampler.cdf(r)
-        Theta: NDArray64 = self.thetasampler.cdf(theta, r=r)
-        Phi: NDArray64 = self.phisampler.cdf(phi, r=r, theta=theta)
+        R: NDArrayF = self.rsampler.cdf(r)
+        Theta: NDArrayF = self.thetasampler.cdf(theta, r=r)
+        Phi: NDArrayF = self.phisampler.cdf(phi, r=r, theta=theta)
         return np.c_[R, Theta, Phi].squeeze()
-
-    # /def
 
     def rvs(
         self,
         *,
-        size: T.Optional[int] = None,
+        size: Optional[int] = None,
         random_state: RandomLike = None,
         vectorized=True,
     ) -> PhysicsSphericalRepresentation:
@@ -228,39 +305,27 @@ class SCFSamplerBase:
         -------
         `~astropy.coordinates.PhysicsSphericalRepresentation`
         """
+        # TODO! fix that thetasampler is off by pi/2
+
         rs = self.rsampler.rvs(size=size, random_state=random_state)
 
         if vectorized:
-            thetas = self.thetasampler.rvs(rs, size=size, random_state=random_state)
+            thetas = np.pi / 2 - self.thetasampler.rvs(rs, size=size, random_state=random_state)
             phis = self.phisampler.rvs(rs, thetas, size=size, random_state=random_state)
 
-        else:
-            # TODO! speed up
+        else:  # TODO! speed up
+            # sample from theta and phi. Note that each needs to be in a separate
+            # NumpyRNGContext to ensure that the results match the vectorized
+            # option, above.
+            kw = dict(size=1, random_state=None)
+
             with NumpyRNGContext(random_state):
-                thetas = np.array(
-                    [
-                        self.thetasampler.rvs(r, size=1, random_state=None)
-                        for r in np.atleast_1d(rs)
-                    ],
-                )
-                phis = np.array(
-                    [
-                        self.phisampler.rvs(r, th, size=1, random_state=None)
-                        for r, th in zip(np.atleast_1d(rs), np.atleast_1d(thetas))
-                    ],
-                )
+                rsd = np.atleast_1d(rs)
+                thetas = np.pi / 2 - np.array([self.thetasampler.rvs(r, **kw) for r in rsd])
 
-        crd = PhysicsSphericalRepresentation(
-            r=rs,
-            theta=(np.pi / 2 - thetas) * u.rad,
-            phi=phis * u.rad,
-        )
+            with NumpyRNGContext(random_state):
+                thd = np.atleast_1d(thetas)
+                phis = np.array([self.phisampler.rvs(r, th, **kw) for r, th in zip(rsd, thd)])
+
+        crd = PhysicsSphericalRepresentation(r=rs, theta=thetas << u.rad, phi=phis << u.rad)
         return crd
-
-    # /def
-
-
-# /class
-
-##############################################################################
-# END

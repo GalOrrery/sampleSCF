@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""**DOCSTRING**.
-
-Description.
-
-"""
+"""Utility functions."""
 
 ##############################################################################
 # IMPORTS
@@ -13,8 +9,9 @@ from __future__ import annotations
 
 # BUILT-IN
 import functools
-import typing as T
 import warnings
+from contextlib import nullcontext
+from typing import Optional, Tuple, Union
 
 # THIRD PARTY
 import astropy.units as u
@@ -22,10 +19,11 @@ import numpy as np
 import numpy.typing as npt
 from galpy.potential import SCFPotential
 from numpy import arange, arccos, array, atleast_1d, cos, divide, nan_to_num, pi, sqrt, stack, sum
+from numpy.typing import ArrayLike
 from scipy.special import legendre, lpmn
 
 # LOCAL
-from ._typing import NDArray64
+from ._typing import NDArrayF
 
 __all__ = [
     "zeta_of_r",
@@ -52,8 +50,9 @@ with warnings.catch_warnings():
     _difPls = (Pls[2:] - Pls[:-2]) / (2 * lrange[1:-1] + 1)
 
 
-def difPls(x: T.Union[float, NDArray64], lmax: int) -> NDArray64:
+def difPls(x: Union[float, NDArrayF], lmax: int) -> NDArrayF:
     # TODO? speed up
+    # TODO! the lmax = 1 case
     return array([dPl(x) for dPl in _difPls[:lmax]])
 
 
@@ -62,7 +61,7 @@ def difPls(x: T.Union[float, NDArray64], lmax: int) -> NDArray64:
 ##############################################################################
 
 
-def zeta_of_r(r: T.Union[u.Quantity, NDArray64]) -> NDArray64:
+def zeta_of_r(r: Union[u.Quantity, NDArrayF]) -> NDArrayF:
     r""":math:`\zeta = \frac{r - 1}{r + 1}`
 
     Map the half-infinite domain [0, infinity) -> [-1, 1]
@@ -77,18 +76,15 @@ def zeta_of_r(r: T.Union[u.Quantity, NDArray64]) -> NDArray64:
     zeta : ndarray
         With shape (len(r),)
     """
-    ra: NDArray64 = r.value if isinstance(r, u.Quantity) else np.asanyarray(r)
-    zeta: NDArray64 = nan_to_num(divide(ra - 1, ra + 1), nan=1)
+    ra: NDArrayF = np.array(r, dtype=np.float64, copy=False)
+    zeta: NDArrayF = nan_to_num(divide(ra - 1, ra + 1), nan=1)
     return zeta
 
 
-# /def
-
-
 def r_of_zeta(
-    zeta: npt.ArrayLike,
-    unit: T.Optional[u.UnitBase] = None,
-) -> T.Union[u.Quantity, NDArray64]:
+    zeta: ArrayLike,
+    unit: Optional[u.UnitBase] = None,
+) -> Union[u.Quantity, NDArrayF]:
     r""":math:`r = \frac{1 + \zeta}{1 - \zeta}`
 
     Map back to the half-infinite domain [0, infinity) <- [-1, 1]
@@ -107,20 +103,17 @@ def r_of_zeta(
     r = atleast_1d(divide(1 + z, 1 - z))
     r[r < 0] = 0  # correct small errors
 
-    rq: T.Union[NDArray64, u.Quantity]
+    rq: Union[NDArrayF, u.Quantity]
     rq = r << unit if unit is not None else r
 
     return rq
-
-
-# /def
 
 
 # -------------------------------------------------------------------
 
 
 @functools.singledispatch
-def x_of_theta(theta: npt.ArrayLike) -> NDArray64:
+def x_of_theta(theta: ArrayLike) -> NDArrayF:
     r""":math:`x = \cos{\theta}`.
 
     Parameters
@@ -133,12 +126,12 @@ def x_of_theta(theta: npt.ArrayLike) -> NDArray64:
     x : ndarray[float]
         :math:`x \in [-1, 1]`
     """
-    x: NDArray64 = cos(pi / 2 - np.asanyarray(theta))
+    x: NDArrayF = cos(pi / 2 - np.asanyarray(theta))
     return x
 
 
 @x_of_theta.register
-def _(theta: u.Quantity) -> NDArray64:
+def _(theta: u.Quantity) -> NDArrayF:
     r""":math:`x = \cos{\theta}`.
 
     Parameters
@@ -149,17 +142,14 @@ def _(theta: u.Quantity) -> NDArray64:
     -------
     x : float or ndarray
     """
-    x: NDArray64 = cos(pi / 2 - theta.to_value(u.rad))
+    x: NDArrayF = cos(pi / 2 - theta.to_value(u.rad))
     return x
 
 
-# /def
-
-
 def theta_of_x(
-    x: npt.ArrayLike,
-    unit: T.Optional[u.UnitBase] = None,
-) -> T.Union[NDArray64, u.Quantity]:
+    x: ArrayLike,
+    unit: Optional[u.UnitBase] = None,
+) -> Union[NDArrayF, u.Quantity]:
     r""":math:`\theta = \cos^{-1}{x}`.
 
     Parameters
@@ -171,9 +161,9 @@ def theta_of_x(
     -------
     theta : float or ndarray
     """
-    th: NDArray64 = pi / 2 - arccos(x)
+    th: NDArrayF = pi / 2 - arccos(x)
 
-    theta: T.Union[NDArray64, u.Quantity]
+    theta: Union[NDArrayF, u.Quantity]
     if unit is not None:
         theta = u.Quantity(th, u.rad).to(unit)
     else:
@@ -182,13 +172,10 @@ def theta_of_x(
     return theta
 
 
-# /def
-
-
 # -------------------------------------------------------------------
 
 
-def thetaQls(pot: SCFPotential, r: T.Union[float, NDArray64]) -> NDArray64:
+def thetaQls(pot: SCFPotential, r: Union[float, NDArrayF]) -> NDArrayF:
     r"""
     Radial sums for inclination weighting factors.
     The weighting factors measure perturbations from spherical symmetry.
@@ -205,6 +192,9 @@ def thetaQls(pot: SCFPotential, r: T.Union[float, NDArray64]) -> NDArray64:
     Ql : ndarray
 
     """
+    # with warnings.catch_warnings():  # TODO! diagnose RuntimeWarning
+    # warnings.filterwarnings("ignore", category=RuntimeWarning, message="(^invalid value)")
+
     # compute the r-dependent coefficient matrix $\tilde{\rho}$  # (R, N, L)
     nmax, lmax = pot._Acos.shape[:2]
     rs = atleast_1d(r)  # need r to be array.
@@ -218,22 +208,21 @@ def thetaQls(pot: SCFPotential, r: T.Union[float, NDArray64]) -> NDArray64:
     Qls = nan_to_num(sum(pot._Acos[None, :, :, 0] * rhoTilde, axis=1), nan=1)  # (R, N, L)
 
     # remove extra dimensions, e.g. scalar 'r'
-    Ql: NDArray64 = Qls.squeeze()
+    Ql: NDArrayF = Qls.squeeze()
+
     return Ql
 
-
-# /def
 
 # -------------------------------------------------------------------
 
 
 def _pnts_phiRSms(
-    rhoTilde: NDArray64,
-    Acos: NDArray64,
-    Asin: NDArray64,
-    r: npt.ArrayLike,
-    theta: npt.ArrayLike,
-) -> T.Tuple[NDArray64, NDArray64]:
+    rhoTilde: NDArrayF,
+    Acos: NDArrayF,
+    Asin: NDArrayF,
+    r: ArrayLike,
+    theta: ArrayLike,
+) -> Tuple[NDArrayF, NDArrayF]:
     """Radial and inclination sums for azimuthal weighting factors.
 
     Parameters
@@ -247,9 +236,15 @@ def _pnts_phiRSms(
     -------
     Rm, Sm : (R, T, L) ndarray
         Azimuthal weighting factors.
+
+    Warns
+    -----
+    RuntimeWarning
+        For invalid values (inf addition -> Nan).
+        For overflow encountered related to inf and 0 division.
     """
     # need r and theta to be arrays. Maintains units.
-    tgrid: NDArray64 = atleast_1d(theta)
+    tgrid: NDArrayF = atleast_1d(theta)
 
     # transform to correct shape for vectorized computation
     x = x_of_theta(tgrid)  # (R/T,)
@@ -260,12 +255,9 @@ def _pnts_phiRSms(
     RhoT = rhoTilde[:, :, :, None]  # (R/T, N, L, {L})
 
     # legendre polynomials
-    with warnings.catch_warnings():  # there's a RuntimeWarning to ignore
-        warnings.simplefilter("ignore")
-        lps = lpmn_vec(lmax - 1, lmax - 1, x)[0]  # drop deriv
+    lps = lpmn_vec(lmax - 1, lmax - 1, x)[0]  # drop deriv
 
-    PP = np.stack(lps, axis=0).astype(float)[:, None, :, :]
-    # (R/T, {N}, L, L)
+    PP = np.stack(lps, axis=0).astype(float)[:, None, :, :]  # (R/T, {N}, L, L)
 
     # full R & S matrices
     RSnlm = RhoT * sqrt(1 - Xs ** 2) * PP  # (R/T, N, L, L)
@@ -286,16 +278,13 @@ def _pnts_phiRSms(
     return Rm, Sm
 
 
-# /def
-
-
 def _grid_phiRSms(
-    rhoTilde: NDArray64,
-    Acos: NDArray64,
-    Asin: NDArray64,
-    r: npt.ArrayLike,
-    theta: npt.ArrayLike,
-) -> T.Tuple[NDArray64, NDArray64]:
+    rhoTilde: NDArrayF,
+    Acos: NDArrayF,
+    Asin: NDArrayF,
+    r: ArrayLike,
+    theta: ArrayLike,
+) -> Tuple[NDArrayF, NDArrayF]:
     """Radial and inclination sums for azimuthal weighting factors.
 
     Parameters
@@ -309,36 +298,50 @@ def _grid_phiRSms(
     -------
     Rm, Sm : (R, T, L) ndarray
         Azimuthal weighting factors.
+
+    Warns
+    -----
+    RuntimeWarning
+        For invalid values (inf addition -> Nan).
+        For overflow encountered related to inf and 0 division.
     """
     # need r and theta to be arrays. Maintains units.
-    tgrid: NDArray64 = atleast_1d(theta)
+    tgrid: NDArrayF = atleast_1d(theta)
+    rgrid: NDArrayF = atleast_1d(r)
 
     # transform to correct shape for vectorized computation
     x = x_of_theta(tgrid)  # (T,)
     Xs = x[None, :, None, None, None]  # ({R}, X, {N}, {L}, {L})
 
-    # compute the r-dependent coefficient matrix $\tilde{\rho}$
+    # format the r-dependent coefficient matrix $\tilde{\rho}$
     nmax, lmax = Acos.shape[:2]
     RhoT = rhoTilde[:, None, :, :, None]  # (R, {X}, N, L, {L})
 
-    # legendre polynomials
-    with warnings.catch_warnings():  # there's a RuntimeWarning to ignore
-        warnings.simplefilter("ignore")
-        lps = lpmn_vec(lmax - 1, lmax - 1, x)[0]  # drop deriv
+    # legendre polynomials  # raises RuntimeWarnings
+    lps = lpmn_vec(lmax - 1, lmax - 1, x)[0]  # drop deriv
 
     PP = np.stack(lps, axis=0).astype(float)[None, :, None, :, :]
     # ({R}, X, {N}, L, L)
 
-    # full R & S matrices
+    # full R & S matrices  # raises RuntimeWarnings
     RSnlm = RhoT * sqrt(1 - Xs ** 2) * PP  # (R, X, N, L, L)
+    # for r=0, rhoT can be +/- inf. If added / multiplied by 0 this will be NaN
+    # we can safely set this to 0 if rhoT's infinities cancel
+    i0 = rgrid == 0
+    if not np.sum(np.nan_to_num(RhoT[i0, 0, :, 0, 0], posinf=1, neginf=-1)) == 0:
+        # note: this if statement works even if ind0 is all False
+        warnings.warn("RhoT have non-cancelling infinities at r==0")
+    else:
+        RSnlm[i0, 0, :, 0, :] = np.nan_to_num(RSnlm[i0, 0, :, 0, :], copy=False)
 
-    # n-sum  # (R, X, L, L)
+    # n-sum  # (R, X, L, L)  # raises RuntimeWarnings
     Rlm = sum(Acos[None, None, :, :, :] * RSnlm, axis=2)
     Slm = sum(Asin[None, None, :, :, :] * RSnlm, axis=2)
     # fix adding +/- inf -> NaN. happens when r=0.
-    idx = np.all(np.isnan(Rlm[:, 0, 0, :]), axis=-1)
-    Rlm[idx, 0, 0, :] = nan_to_num(Rlm[idx, 0, 0, :])
-    Slm[idx, 0, 0, :] = nan_to_num(Slm[idx, 0, 0, :])
+    # the check for cancelling infinities is done above.
+    # the [X]=0 case is handled above as well.
+    Rlm[i0, 1:, 0, :] = nan_to_num(Rlm[i0, 1:, 0, :], copy=False)
+    Slm[i0, 1:, 0, :] = nan_to_num(Slm[i0, 1:, 0, :], copy=False)
 
     # m-sum  # (R, X, L)
     sumidx = range(Rlm.shape[2])
@@ -348,15 +351,13 @@ def _grid_phiRSms(
     return Rm, Sm
 
 
-# /def
-
-
 def phiRSms(
     pot: SCFPotential,
-    r: npt.ArrayLike,
-    theta: npt.ArrayLike,
+    r: ArrayLike,
+    theta: ArrayLike,
     grid: bool = True,
-) -> T.Tuple[NDArray64, NDArray64]:
+    warn: bool = True,
+) -> Tuple[NDArrayF, NDArrayF]:
     r"""Radial and inclination sums for azimuthal weighting factors.
 
     .. math::
@@ -379,8 +380,8 @@ def phiRSms(
         Azimuthal weighting factors. Shape (len(r), len(theta), L).
     """
     # need r and theta to be arrays. The extra dimensions will be 'squeeze'd.
-    rgrid = atleast_1d(r)
-    tgrid = atleast_1d(theta)
+    rgrid: npt.NDArray = atleast_1d(r)
+    tgrid: npt.NDArray = atleast_1d(theta)
 
     # compute the r-dependent coefficient matrix $\tilde{\rho}$  # (R, N, L)
     nmax: int
@@ -394,14 +395,16 @@ def phiRSms(
     )
 
     # pass to actual calculator, which takes the matrices and r, theta grids.
-    if grid:
-        Rm, Sm = _grid_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
-    else:
-        Rm, Sm = _pnts_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
+    with warnings.catch_warnings() if not warn else nullcontext():
+        if not warn:
+            warnings.filterwarnings(
+                "ignore",
+                category=RuntimeWarning,
+                message="(^invalid value)|(^overflow encountered)",
+            )
+        if grid:
+            Rm, Sm = _grid_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
+        else:
+            Rm, Sm = _pnts_phiRSms(rhoTilde, pot._Acos, pot._Asin, rgrid, tgrid)
+
     return Rm, Sm
-
-
-# /def
-
-##############################################################################
-# END

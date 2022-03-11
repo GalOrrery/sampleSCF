@@ -15,7 +15,7 @@ from astropy.utils.misc import NumpyRNGContext
 from numpy.testing import assert_allclose
 
 # LOCAL
-from .common import SCFPhiSamplerTestBase, SCFRSamplerTestBase, SCFThetaSamplerTestBase
+from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
 from .test_base import SCFSamplerTestBase
 from sample_scf import conftest, exact
 from sample_scf.utils import difPls, r_of_zeta, thetaQls, x_of_theta
@@ -33,38 +33,17 @@ pgrid = np.linspace(0, 2 * np.pi, 30)
 ##############################################################################
 
 
-class _request:
-    def __init__(self, param):
-        self.param = param
-
-    # /def
-
-
-# /class
-
-
-def getpot(name):
-    return next(conftest.potentials.__wrapped__(_request(name)))
-
-
-# /def
-
-
 class Test_SCFSampler(SCFSamplerTestBase):
     """Test :class:`sample_scf.exact.SCFSampler`."""
 
     def setup_class(self):
         super().setup_class(self)
 
+        # sampler initialization
         self.cls = exact.SCFSampler
         self.cls_args = ()
         self.cls_kwargs = {}
-
-        # TODO! less hacky approach
-        self.cls_pot_kw = {
-            getpot("hernquist_scf_potential"): {"total_mass": 1.0},
-            getpot("other_hernquist_scf_potential"): {"total_mass": 1.0},
-        }
+        self.cls_pot_kw = conftest.cls_pot_kw
 
         # TODO! make sure these are right!
         self.expected_rvs = {
@@ -77,10 +56,19 @@ class Test_SCFSampler(SCFSamplerTestBase):
             ),
         }
 
-    # /def
-
     # ===============================================================
     # Method Tests
+
+    def test_init(self, potentials):
+        kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
+        instance = self.cls(potentials, *self.cls_args, **kw)
+
+        assert isinstance(instance.rsampler, exact.r_distribution)
+        assert isinstance(instance.thetasampler, exact.theta_distribution)
+        assert isinstance(instance.phisampler, exact.phi_distribution)
+
+    def test_rvs(self, sampler):
+        """Test Random Variates Sampler."""
 
     # TODO! make sure these are correct
     @pytest.mark.parametrize(
@@ -94,8 +82,6 @@ class Test_SCFSampler(SCFSamplerTestBase):
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
-
-    # /def
 
     # ===============================================================
     # Plot Tests
@@ -136,8 +122,6 @@ class Test_SCFSampler(SCFSamplerTestBase):
 
         return fig
 
-    # /def
-
     def test_exact_sampling_plot(self, sampler):
         """Plot sampling."""
         samples = sampler.rvs(size=int(1e3), random_state=3)
@@ -165,37 +149,27 @@ class Test_SCFSampler(SCFSamplerTestBase):
 
         return fig
 
-    # /def
-
-
-# /class
-
 
 # ============================================================================
 
 
-class Test_SCFRSampler(SCFRSamplerTestBase):
-    """Test :class:`sample_scf.exact.SCFRSampler`"""
+class Test_r_distribution(r_distributionTestBase):
+    """Test :class:`sample_scf.exact.r_distribution`"""
 
     def setup_class(self):
-        self.cls = exact.SCFRSampler
+        super().setup_class(self)
+
+        # sampler initialization
+        self.cls = exact.r_distribution
         self.cls_args = ()
         self.cls_kwargs = {}
-        self.cls_pot_kw = {  # TODO! less hacky approach
-            getpot("hernquist_scf_potential"): {"total_mass": 1.0},
-            getpot("other_hernquist_scf_potential"): {"total_mass": 1.0},
-        }
+        self.cls_pot_kw = conftest.cls_pot_kw
 
+        # time-scale tests
         self.cdf_time_scale = 1e-2  # milliseconds
         self.rvs_time_scale = 1e-2  # milliseconds
 
-        self.theory = dict(
-            hernquist=conftest.hernquist_df,
-        )
-
-    # /def
-
-    @pytest.fixture(autouse=True, scope="class")
+    @pytest.fixture()
     def sampler(self, potentials):
         """Set up r, theta, or phi sampler."""
         kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
@@ -203,27 +177,23 @@ class Test_SCFRSampler(SCFRSamplerTestBase):
 
         return sampler
 
-    # /def
-
     # ===============================================================
     # Method Tests
 
     @pytest.mark.skip("TODO!")
-    def test___init__(self):
+    def test_init(self):
         assert False
         # test if mgrid is SCFPotential
 
     # TODO! use hypothesis
     @pytest.mark.parametrize("r", np.random.default_rng(0).uniform(0, 1e4, 10))
     def test__cdf(self, sampler, r):
-        """Test :meth:`sample_scf.exact.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.exact.r_distribution._cdf`."""
         super().test__cdf(sampler, r)
 
         # expected
         mass = np.atleast_1d(sampler._potential._mass(r)) / sampler._mtot
         assert_allclose(sampler._cdf(r), mass)
-
-    # /def
 
     @pytest.mark.parametrize(
         "size, random, expected",
@@ -235,10 +205,8 @@ class Test_SCFRSampler(SCFRSamplerTestBase):
         ],
     )
     def test_rvs(self, sampler, size, random, expected):
-        """Test :meth:`sample_scf.exact.SCFRSampler.rvs`."""
+        """Test :meth:`sample_scf.exact.r_distribution.rvs`."""
         super().test_rvs(sampler, size, random, expected)
-
-    # /def
 
     # ===============================================================
     # Time Scaling Tests
@@ -248,8 +216,6 @@ class Test_SCFRSampler(SCFRSamplerTestBase):
     def test_rvs_time_scaling(self, sampler, size):
         """Test that the time scales as X * size"""
         super().test_rvs_time_scaling(sampler, size)
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -282,34 +248,25 @@ class Test_SCFRSampler(SCFRSamplerTestBase):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_exact_r_sampling_plot(self, request, sampler):
+    def test_exact_r_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e3))
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e6)).r()
-            theory = theory[theory < 1e4]
+            theory = self.theory[sampler._potential].sample(n=int(1e6)).r()
+            theory = theory[theory < 1e4 * u.kpc]
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(121, title="SCF vs theory sampling", xlabel="r", ylabel="frequency")
         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.kpc),
             bins=bins,
             log=True,
             alpha=0.5,
@@ -320,27 +277,20 @@ class Test_SCFRSampler(SCFRSamplerTestBase):
 
         return fig
 
-    # /def
-
-
-# /class
-
 
 # ----------------------------------------------------------------------------
 
 
-class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
-    """Test :class:`sample_scf.exact.SCFThetaSampler`."""
+class Test_theta_distribution(theta_distributionTestBase):
+    """Test :class:`sample_scf.exact.theta_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = exact.SCFThetaSampler
+        self.cls = exact.theta_distribution
 
         self.cdf_time_scale = 1e-3
         self.rvs_time_scale = 7e-2
-
-    # /def
 
     # ===============================================================
     # Method Tests
@@ -357,7 +307,7 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
         ],
     )
     def test__cdf(self, sampler, x, r):
-        """Test :meth:`sample_scf.exact.SCFThetaSampler._cdf`."""
+        """Test :meth:`sample_scf.exact.theta_distribution._cdf`."""
         Qls = np.atleast_2d(thetaQls(sampler._potential, r))
 
         # basically a test it's Hernquist, only the first term matters
@@ -379,15 +329,11 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
 
             assert_allclose(sampler._cdf(x, r=r), cdf)
 
-    # /def
-
     @pytest.mark.parametrize("r", r_of_zeta(np.random.default_rng(0).uniform(-1, 1, 10)))
     def test__cdf_edge(self, sampler, r):
-        """Test :meth:`sample_scf.exact.SCFRSampler._cdf`."""
+        """Test :meth:`sample_scf.exact.r_distribution._cdf`."""
         assert np.isclose(sampler._cdf(-1, r=r), 0.0, atol=1e-16)
         assert np.isclose(sampler._cdf(1, r=r), 1.0, atol=1e-16)
-
-    # /def
 
     @pytest.mark.parametrize(
         "theta, r",
@@ -399,24 +345,18 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
         ],
     )
     def test_cdf(self, sampler, theta, r):
-        """Test :meth:`sample_scf.exact.SCFThetaSampler.cdf`."""
+        """Test :meth:`sample_scf.exact.theta_distribution.cdf`."""
         self.test__cdf(sampler, x_of_theta(theta), r)
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.exact.SCFThetaSampler._rvs`."""
+        """Test :meth:`sample_scf.exact.theta_distribution._rvs`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.exact.SCFThetaSampler.rvs`."""
+        """Test :meth:`sample_scf.exact.theta_distribution.rvs`."""
         assert False
-
-    # /def
 
     # ===============================================================
     # Time Scaling Tests
@@ -426,8 +366,6 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
     def test_rvs_time_scaling(self, sampler, size):
         """Test that the time scales as X * size"""
         super().test_rvs_time_scaling(sampler, size)
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -475,26 +413,18 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_exact_theta_sampling_plot(self, request, sampler):
+    def test_exact_theta_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e3), r=10)
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e6)).theta() - np.pi / 2
+            theory = self.theory[sampler._potential].sample(n=int(1e6)).theta()
+            theory -= np.pi / 2 * u.rad
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -506,7 +436,7 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.rad),
             bins=bins,
             log=True,
             alpha=0.5,
@@ -517,58 +447,43 @@ class Test_SCFThetaSampler(SCFThetaSamplerTestBase):
 
         return fig
 
-    # /def
-
-
-# /class
-
 
 ###############################################################################
 
 
-class Test_SCFPhiSampler(SCFPhiSamplerTestBase):
-    """Test :class:`sample_scf.exact.SCFPhiSampler`."""
+class Test_phi_distribution(phi_distributionTestBase):
+    """Test :class:`sample_scf.exact.phi_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = exact.SCFPhiSampler
+        self.cls = exact.phi_distribution
 
         self.cdf_time_scale = 3e-3
         self.rvs_time_scale = 3e-3
-
-    # /def
 
     # ===============================================================
     # Method Tests
 
     @pytest.mark.skip("TODO!")
     def test__cdf(self):
-        """Test :meth:`sample_scf.exactolated.SCFPhiSampler._cdf`."""
+        """Test :meth:`sample_scf.exactolated.phi_distribution._cdf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_cdf(self):
-        """Test :meth:`sample_scf.exactolated.SCFPhiSampler.cdf`."""
+        """Test :meth:`sample_scf.exactolated.phi_distribution.cdf`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.exactolated.SCFPhiSampler._rvs`."""
+        """Test :meth:`sample_scf.exactolated.phi_distribution._rvs`."""
         assert False
-
-    # /def
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.exactolated.SCFPhiSampler.rvs`."""
+        """Test :meth:`sample_scf.exactolated.phi_distribution.rvs`."""
         assert False
-
-    # /def
 
     # ===============================================================
     # Image Tests
@@ -599,26 +514,17 @@ class Test_SCFPhiSampler(SCFPhiSamplerTestBase):
         fig.tight_layout()
         return fig
 
-    # /def
-
     @pytest.mark.mpl_image_compare(
         baseline_dir="baseline_images",
         # hash_library="baseline_images/path_to_file.json",
     )
-    def test_exact_phi_sampling_plot(self, request, sampler):
+    def test_exact_phi_sampling_plot(self, sampler):
         """Test sampling."""
-        # fiqure out theory sampler
-        options = request.fixturenames[0]
-        if "hernquist" in options:
-            kind = "hernquist"
-        else:
-            raise ValueError
-
         with NumpyRNGContext(0):  # control the random numbers
             sample = sampler.rvs(size=int(1e3), r=10, theta=np.pi / 6)
             sample = sample[sample < 1e4]
 
-            theory = self.theory[kind].sample(n=int(1e3)).phi()
+            theory = self.theory[sampler._potential].sample(n=int(1e3)).phi()
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -630,7 +536,7 @@ class Test_SCFPhiSampler(SCFPhiSamplerTestBase):
         _, bins, *_ = ax.hist(sample, bins=30, log=True, alpha=0.5, label="SCF sample")
         # Comparing to expected
         ax.hist(
-            theory,
+            theory.to_value(u.rad),
             bins=bins,
             log=True,
             alpha=0.5,
@@ -640,12 +546,3 @@ class Test_SCFPhiSampler(SCFPhiSamplerTestBase):
         fig.tight_layout()
 
         return fig
-
-    # /def
-
-
-# /class
-
-
-##############################################################################
-# END
