@@ -11,7 +11,7 @@ Description.
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 import itertools
 import warnings
 from typing import Any, Optional, Union, cast
@@ -25,11 +25,10 @@ from scipy.interpolate import RegularGridInterpolator, splev, splrep
 
 # LOCAL
 from sample_scf._typing import NDArrayF, RandomLike
-from sample_scf.base import rv_potential
-from sample_scf.cdf_strategy import default_cdf_strategy
-from sample_scf.utils import phiRSms, x_of_theta, zeta_of_r
+from sample_scf.base_univariate import phi_distribution_base
+from sample_scf.representation import x_of_theta, zeta_of_r
 
-__all__ = ["phi_distribution"]
+__all__ = ["interpolated_phi_distribution"]
 
 
 ##############################################################################
@@ -37,19 +36,15 @@ __all__ = ["phi_distribution"]
 ##############################################################################
 
 
-class phi_distribution(rv_potential):
+class interpolated_phi_distribution(phi_distribution_base):
     """SCF phi sampler.
-
-    .. todo::
-
-        Make sure that stuff actually goes from 0 to 1.
 
     Parameters
     ----------
     potential : `galpy.potential.SCFPotential`
-    rgrid : ndarray[float]
-    tgrid : ndarray[float]
-    pgrid : ndarray[float]
+    radii : ndarray[float]
+    thetas : ndarray[float]
+    phis : ndarray[float]
     intrp_step : float, optional
     **kw
         Passed to `scipy.stats.rv_continuous`
@@ -59,50 +54,53 @@ class phi_distribution(rv_potential):
     def __init__(
         self,
         potential: SCFPotential,
-        rgrid: NDArrayF,
-        tgrid: NDArrayF,
-        pgrid: NDArrayF,
-        intrp_step: float = 0.01,
+        radii: Quantity,
+        thetas: Quantity,
+        phis: Quantity,
+        nintrp: float = 1e3,
         **kw: Any,
     ) -> None:
-        kw["a"], kw["b"] = 0, 2 * np.pi
-        (Rm, Sm) = kw.pop("RSms", (None, None))
+        (Sc, Ss) = kw.pop("Scs", (None, None))
         super().__init__(potential, **kw)  # allowed range of r
 
-        self._phi_interpolant = np.arange(0, 2 * np.pi, intrp_step)
+        self._phi_interpolant = np.linspace(0, 2 * np.pi, int(nintrp)) << u.rad
         self._ninterpolant = len(self._phi_interpolant)
         self._q_interpolant = qarr = np.linspace(0, 1, self._ninterpolant)
 
         # -------
         # build CDF
 
-        zetas = zeta_of_r(rgrid)  # (R,)
-        xs = x_of_theta(tgrid)  # (T,)
+        zetas = zeta_of_r(radii)  # (R,)
 
-        lR, lT, _ = len(rgrid), len(tgrid), len(pgrid)
+        xs_unsorted = x_of_theta(thetas << u.rad)  # (T,)
+        xsort = np.argsort(xs_unsorted)
+        xs = xs_unsorted[xsort]
+        thetas = thetas[xsort]
 
-        Phis = pgrid[None, None, :, None]  # ({R}, {T}, P, {L})
+        lR, lT, _ = len(radii), len(thetas), len(phis)
 
-        # get Rm, Sm. We have defaults from above.
-        if Rm is None:
+        Phis = phis[None, None, :, None]  # ({R}, {T}, P, {L})
+
+        # get Sc, Ss. We have defaults from above.
+        if Sc is None:
             print("WTF?")
-            Rm, Sm = phiRSms(potential, rgrid, tgrid, grid=True, warn=False)  # (R, T, L)
-        elif (Rm.shape != Sm.shape) or (Rm.shape != (lR, lT, self._lmax)):
+            Sc, Ss = self.calculate_Scs(radii, thetas, grid=True, warn=False)  # (R, T, L)
+        elif (Sc.shape != Ss.shape) or (Sc.shape != (lR, lT, self._lmax + 1)):
             # check the user-passed values are the right shape
-            raise ValueError(f"Rm, Sm must be shape ({lR}, {lT}, {self._lmax})")
+            raise ValueError(f"Sc, Ss must be shape ({lR}, {lT}, {self._lmax + 1})")
 
         # l = 0 : spherical symmetry
         term0 = Phis[..., 0] / (2 * np.pi)  # (1, 1, P)
         # l = 1+ : non-symmetry
         with warnings.catch_warnings():  # ignore true_divide RuntimeWarnings
             warnings.simplefilter("ignore")
-            factor = 1 / Rm[:, :, :1]  # R0  (R, T, 1)  # can be inf
+            factor = 1 / Sc[:, :, :1]  # R0  (R, T, 1)  # can be inf
 
-        ms = np.arange(1, self._lmax)[None, None, None, :]  # ({R}, {T}, {P}, L)
+        ms = np.arange(1, self._lmax + 1)[None, None, None, :]  # ({R}, {T}, {P}, L)
         term1p = np.sum(
             (
-                (Rm[:, :, None, 1:] * np.sin(ms * Phis))
-                + (Sm[:, :, None, 1:] * (1 - np.cos(ms * Phis)))
+                (Sc[:, :, None, 1:] * np.sin(ms * Phis))
+                + (Ss[:, :, None, 1:] * (1 - np.cos(ms * Phis)))
             )
             / (2 * np.pi * ms),
             axis=-1,
@@ -113,15 +111,15 @@ class phi_distribution(rv_potential):
 
         # interpolate
         # currently assumes a regular grid
-        self._spl_cdf = RegularGridInterpolator((zetas, xs, pgrid), cdfs)
+        self._spl_cdf = RegularGridInterpolator((zetas, xs, phis), cdfs)
 
         # -------
         # ppf
         # might need cdf strategy to enforce "reality"
-        cdfstrategy = default_cdf_strategy.get()
+        # cdfstrategy = get_strategy(cdf_strategy)
 
         # start by supersampling
-        Zetas, Xs, Phis = np.meshgrid(zetas, xs, self._phi_interpolant, indexing="ij")
+        Zetas, Xs, Phis = np.meshgrid(zetas, xs, self._phi_interpolant.value, indexing="ij")
         _cdfs = self._spl_cdf((Zetas.ravel(), Xs.ravel(), Phis.ravel())).reshape(
             lR,
             lT,
@@ -133,8 +131,10 @@ class phi_distribution(rv_potential):
             try:
                 spl = splrep(_cdfs[i, j, :], self._phi_interpolant, s=0)
             except ValueError:  # CDF is non-real
-                _cdf = cdfstrategy.apply(_cdfs[i, j, :], index=(i, j))
-                spl = splrep(_cdf, self._phi_interpolant, s=0)
+                import pdb
+            
+                pdb.set_trace()
+                raise
 
             ppfs[i, j, :] = splev(qarr, spl, ext=0)
         # interpolate
@@ -144,44 +144,28 @@ class phi_distribution(rv_potential):
             bounds_error=False,
         )
 
-    def _cdf(
-        self,
-        phi: ArrayLike,
-        *args: Any,
-        zeta: ArrayLike,
-        x: ArrayLike,
-    ) -> NDArrayF:
+    def _cdf(self, phi: ArrayLike, *args: Any, zeta: ArrayLike, x: ArrayLike) -> NDArrayF:
         cdf: NDArrayF = self._spl_cdf((zeta, x, phi))
         return cdf
 
-    def cdf(
-        self,
-        phi: ArrayLike,
-        r: ArrayLike,
-        theta: ArrayLike,
-    ) -> NDArrayF:
+    def cdf(self, phi: Quantity, *, r: Quantity, theta: Quantity) -> NDArrayF:
         # TODO! make sure r, theta in right domain
         cdf = self._cdf(
             phi,
-            zeta=zeta_of_r(r),
-            x=x_of_theta(u.Quantity(theta, u.rad)),
+            zeta=zeta_of_r(r, self._radial_scale_factor),
+            x=x_of_theta(theta << u.rad),
         )
         return cdf
 
-    def _ppf(
-        self,
-        q: ArrayLike,
-        *args: Any,
-        r: ArrayLike,
-        theta: NDArrayF,
-        **kw: Any,
-    ) -> NDArrayF:
-        ppf: NDArrayF = self._spl_ppf((zeta_of_r(r), x_of_theta(theta), q))
+    def _ppf(self, q: ArrayLike, *args: Any, r: ArrayLike, theta: NDArrayF, **kw: Any) -> NDArrayF:
+        zeta = zeta_of_r(r, self._radial_scale_factor)
+        x = x_of_theta(theta << u.rad)
+        ppf: NDArrayF = self._spl_ppf(np.c_[zeta, x, q])
         return ppf
 
     def _rvs(
         self,
-        r: ArrayLike,
+        r: NDArrayF,
         theta: NDArrayF,
         *args: Any,
         random_state: np.random.RandomState,
@@ -194,8 +178,8 @@ class phi_distribution(rv_potential):
 
     def rvs(  # type: ignore
         self,
-        r: Union[np.floating, ArrayLike],
-        theta: Union[np.floating, ArrayLike],
+        r: Quantity,
+        theta: Quantity,
         *,
         size: Optional[int] = None,
         random_state: RandomLike = None,
@@ -204,7 +188,8 @@ class phi_distribution(rv_potential):
 
         Parameters
         ----------
-        r, theta : array-like[float]
+        r : Quantity['length', float]
+        theta : Quantity['angle', float]
         size : int or None (optional, keyword-only)
             Size of random variates to generate.
         random_state : int, `~numpy.random.RandomState`, or None (optional, keyword-only)
@@ -218,4 +203,4 @@ class phi_distribution(rv_potential):
         ndarray[float]
             Shape 'size'.
         """
-        return super().rvs(r, theta, size=size, random_state=random_state)
+        return super().rvs(r, theta, size=size, random_state=random_state) << u.rad

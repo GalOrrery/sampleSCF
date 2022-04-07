@@ -6,5 +6,11 @@ from sample_scf._astropy_init import *  # isort: +split  # noqa: F401, F403
 from sample_scf.core import SCFSampler
 from sample_scf.exact import ExactSCFSampler
 from sample_scf.interpolated import InterpolatedSCFSampler
+from sample_scf.representation import FiniteSphericalRepresentation
 
-__all__ = ["SCFSampler", "ExactSCFSampler", "InterpolatedSCFSampler"]
+__all__ = [
+    "SCFSampler",
+    "ExactSCFSampler",
+    "InterpolatedSCFSampler",
+    "FiniteSphericalRepresentation",
+]

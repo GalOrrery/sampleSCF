@@ -11,23 +11,22 @@ Description.
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 import warnings
 from typing import Any
 
 # THIRD PARTY
 import astropy.units as u
 import numpy as np
+from numpy import nan_to_num, inf, sum, isinf, array
 from galpy.potential import SCFPotential
 
 # LOCAL
+from .azimuth import interpolated_phi_distribution
+from .inclination import interpolated_theta_distribution
+from .radial import interpolated_r_distribution
 from sample_scf._typing import NDArrayF
-from sample_scf.base import SCFSamplerBase
-from sample_scf.utils import _grid_phiRSms
-
-from .rvs_azimuth import phi_distribution
-from .rvs_inclination import theta_distribution
-from .rvs_radial import r_distribution
+from sample_scf.base_multivariate import SCFSamplerBase
 
 __all__ = ["InterpolatedSCFSampler"]
 
@@ -43,20 +42,20 @@ class InterpolatedSCFSampler(SCFSamplerBase):
     Parameters
     ----------
     pot : `~galpy.potential.SCFPotential`
-    rgrid : array-like[float]
+    radii : array-like[float]
         The radial component of the interpolation grid.
-    thetagrid : array-like[float]
+    thetas : array-like[float]
         The inclination component of the interpolation grid.
         :math:`\theta \in [-\pi/2, \pi/2]`, from the South to North pole, so
         :math:`\theta = 0` is the equator.
-    phigrid : array-like[float]
+    phis : array-like[float]
         The azimuthal component of the interpolation grid.
         :math:`phi \in [0, 2\pi)`.
 
     **kw:
-        passed to :class:`~sample_scf.sample_interp.r_distribution`,
-        :class:`~sample_scf.sample_interp.theta_distribution`,
-        :class:`~sample_scf.sample_interp.phi_distribution`
+        passed to :class:`~sample_scf.interpolated.interpolated_r_distribution`,
+        :class:`~sample_scf.interpolated.interpolated_theta_distribution`,
+        :class:`~sample_scf.interpolated.interpolated_phi_distribution`
 
     Examples
     --------
@@ -74,11 +73,11 @@ class InterpolatedSCFSampler(SCFSamplerBase):
     Now we make the sampler, specifying the grid from which the interpolation
     will be built.
 
-        >>> rgrid = np.geomspace(1e-1, 1e3, 100)
-        >>> thetagrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
-        >>> phigrid = np.linspace(0, 2 * np.pi, 30)
+        >>> radii = np.geomspace(1e-1, 1e3, 100)
+        >>> thetas = np.linspace(-np.pi / 2, np.pi / 2, 30)
+        >>> phis = np.linspace(0, 2 * np.pi, 30)
 
-        >>> sampler = SCFSampler(pot, rgrid=rgrid, thetagrid=thetagrid, phigrid=phigrid)
+        >>> sampler = SCFSampler(pot, radii=radii, thetas=thetas, phis=phis)
 
     Now we can evaluate the CDF
 
@@ -97,72 +96,51 @@ class InterpolatedSCFSampler(SCFSamplerBase):
     """
 
     def __init__(
-        self,
-        potential: SCFPotential,
-        rgrid: NDArrayF,
-        thetagrid: NDArrayF,
-        phigrid: NDArrayF,
-        **kw: Any,
+        self, potential: SCFPotential, radii: Quantity, thetas: Quantity, phis: Quantity, **kw: Any
     ) -> None:
-        super().__init__(potential)
+        super().__init__(potential, **kw)
+        # coefficients
+        Acos: np.ndarray = potential._Acos
+        Asin: np.ndarray = potential._Asin
 
-        # compute the r-dependent coefficient matrix $\tilde{\rho}$
-        nmax, lmax = potential._Acos.shape[:2]
-        rhoTilde = np.array([potential._rhoTilde(r, N=nmax, L=lmax) for r in rgrid])  # (R, N, L)
-        # this matrix can have incorrect NaN values when rgrid=0, inf
-        # and needs to be corrected
-        ind = (rgrid == 0) | (rgrid == np.inf)
-        rhoTilde[ind] = np.nan_to_num(
-            rhoTilde[ind],
-            copy=False,
-            nan=0,
-            posinf=np.inf,
-            neginf=-np.inf,
-        )
+        rsort = np.argsort(radii)
+        radii = radii[rsort]
 
-        # ----------
-        # theta Qls
-        # radial sums over $\cos$ portion of the density function
-        # the $\sin$ part disappears in the integral.
+        # Compute the r-dependent coefficient matrix.
+        rhoT = self.calculate_rhoTilde(radii)
 
+        # Compute the radial sums for inclination weighting factors.
         Qls = kw.pop("Qls", None)
         if Qls is None:
-            Qls = np.sum(potential._Acos[None, :, :, 0] * rhoTilde, axis=1)  # ({R}, L)
-            # this matrix can have incorrect NaN values when rgrid=0 because
-            # rhoTilde will have +/- infs which when summed produce a NaN.
-            # at r=0 this can be changed to 0.  # TODO! double confirm math
-            ind0 = rgrid == 0
-            if not np.sum(np.nan_to_num(rhoTilde[ind0, :, 0], posinf=1, neginf=-1)) == 0:
-                # note: this if statement works even if ind0 is all False
-                warnings.warn("Qls have non-cancelling infinities at r==0")
-            else:
-                Qls[ind0] = np.nan_to_num(Qls[ind0], copy=False)
+            Qls = self.calculate_Qls(radii, rhoTilde=rhoT)
 
         # ----------
         # phi Rm, Sm
         # radial and inclination sums
 
-        RSms = kw.pop("RSms", None)
-        if RSms is None:
+        Scs = kw.pop("Scs", None)
+        if Scs is None:
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore",
                     category=RuntimeWarning,
                     message="(^invalid value)|(^overflow encountered)",
                 )
-                RSms = _grid_phiRSms(
-                    rhoTilde,
-                    Acos=potential._Acos,
-                    Asin=potential._Asin,
-                    r=rgrid,
-                    theta=thetagrid,
+                Scs = interpolated_phi_distribution._grid_Scs(
+                    radii, rhoT, Acos=Acos, Asin=Asin, theta=thetas
                 )
 
         # ----------
         # make samplers
 
-        self._r_distribution = r_distribution(potential, rgrid, **kw)
-        self._theta_distribution = theta_distribution(potential, rgrid, thetagrid, Qls=Qls, **kw)
-        self._phi_distribution = phi_distribution(
-            potential, rgrid, thetagrid, phigrid, RSms=RSms, **kw
+        self._r_distribution = interpolated_r_distribution(potential, radii, **kw)
+        self._theta_distribution = interpolated_theta_distribution(
+            potential, radii, thetas, Qls=Qls, **kw
         )
+        self._phi_distribution = interpolated_phi_distribution(
+            potential, radii, thetas, phis, Scs=Scs, **kw
+        )
+
+    @property
+    def _Qls(self) -> NDArrayF:
+        return self._theta_distribution._Qls

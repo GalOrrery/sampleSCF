@@ -5,7 +5,7 @@
 # NOTE: The configuration for the package, including the name, version, and
 # other information are set in the setup.cfg file.
 
-# BUILT-IN
+# STDLIB
 import os
 import sys
 

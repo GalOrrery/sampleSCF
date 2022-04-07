@@ -3,7 +3,7 @@
 
 """Custom typing."""
 
-# BUILT-IN
+# STDLIB
 from typing import Union
 
 # THIRD PARTY
@@ -13,3 +13,6 @@ from numpy.typing import ArrayLike, NDArray
 RandomGenerator = Union[np.random.RandomState, np.random.Generator]
 RandomLike = Union[None, int, RandomGenerator]
 NDArrayF = NDArray[np.floating]
+
+# float array-like
+FArrayLike = Union[float, NDArrayF]

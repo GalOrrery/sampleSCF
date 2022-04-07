@@ -11,7 +11,7 @@ Description.
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 from collections.abc import Mapping
 from typing import Any, Literal, Optional, Type, TypedDict, Union
 
@@ -19,7 +19,8 @@ from typing import Any, Literal, Optional, Type, TypedDict, Union
 from galpy.potential import SCFPotential
 
 # LOCAL
-from .base import SCFSamplerBase, rv_potential
+from .base_multivariate import SCFSamplerBase
+from .base_univariate import rv_potential
 from .exact import ExactSCFSampler
 from .interpolated import InterpolatedSCFSampler
 
@@ -41,12 +42,12 @@ class MethodsMapping(TypedDict):
 ##############################################################################
 
 
-class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
+class SCFSampler(SCFSamplerBase):
     """Sample SCF in spherical coordinates.
 
     The coordinate system is:
     - r : [0, infinity)
-    - theta : [-pi/2, pi/2]  (positive at the North pole)
+    - theta : [0, pi]  (0 at the North pole)
     - phi : [0, 2pi)
 
     Parameters
@@ -58,19 +59,21 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
         Passed to to the individual component sampler constructors.
     """
 
+    _sampler: Optional[SCFSamplerBase]
+
     def __init__(
         self,
         potential: SCFPotential,
         method: Union[Literal["interp", "exact"], MethodsMapping],
         **kwargs: Any,
     ) -> None:
-        super().__init__(potential)
+        super().__init__(potential, **kwargs)
 
         if isinstance(method, Mapping):  # mix and match exact and interpolated
             sampler = None
-            rsampler = method["r"](potential, **kwargs)
-            thetasampler = method["theta"](potential, **kwargs)
-            phisampler = method["phi"](potential, **kwargs)
+            r_distribution = method["r"](potential, **kwargs)
+            theta_distribution = method["theta"](potential, **kwargs)
+            phi_distribution = method["phi"](potential, **kwargs)
 
         else:  # either exact or interpolated
             sampler_cls: Type[SCFSamplerBase]
@@ -82,11 +85,11 @@ class SCFSampler(SCFSamplerBase):  # metaclass=SCFSamplerSwitch
                 raise ValueError(f"method = {method} not in " + "{'interp', 'exact'}")
 
             sampler = sampler_cls(potential, **kwargs)
-            rsampler = sampler.rsampler
-            thetasampler = sampler.thetasampler
-            phisampler = sampler.phisampler
+            r_distribution = sampler.r_distribution
+            theta_distribution = sampler.theta_distribution
+            phi_distribution = sampler.phi_distribution
 
         self._sampler: Optional[SCFSamplerBase] = sampler
-        self._r_distribution = rsampler
-        self._theta_distribution = thetasampler
-        self._phi_distribution = phisampler
+        self._r_distribution = r_distribution
+        self._theta_distribution = theta_distribution
+        self._phi_distribution = phi_distribution

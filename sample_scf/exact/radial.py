@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 import abc
 from typing import Any, Optional, Union, cast
 
@@ -15,14 +15,16 @@ from typing import Any, Optional, Union, cast
 import astropy.units as u
 import numpy as np
 from astropy.coordinates import PhysicsSphericalRepresentation
+from astropy.units import Quantity
+from galpy.potential import SCFPotential
 from numpy.typing import ArrayLike
 
 # LOCAL
 from sample_scf._typing import NDArrayF, RandomLike
-from sample_scf.base import SCFSamplerBase, rv_potential
-from sample_scf.utils import difPls, phiRSms, theta_of_x, thetaQls, x_of_theta
+from sample_scf.base_multivariate import SCFSamplerBase
+from sample_scf.base_univariate import r_distribution_base
 
-__all__ = ["r_distribution"]
+__all__ = ["exact_r_distribution"]
 
 
 ##############################################################################
@@ -30,7 +32,7 @@ __all__ = ["r_distribution"]
 ##############################################################################
 
 
-class r_distribution(rv_potential):
+class exact_r_distribution(r_distribution_base):
     """Sample radial coordinate from an SCF potential.
 
     Parameters
@@ -42,7 +44,9 @@ class r_distribution(rv_potential):
         Not used.
     """
 
-    def __init__(self, potential: SCFPotential, total_mass=None, **kw: Any) -> None:
+    def __init__(
+        self, potential: SCFPotential, total_mass: Optional[Quantity] = None, **kw: Any
+    ) -> None:
         # make sampler
         kw["a"], kw["b"] = 0, np.inf  # allowed range of r
         super().__init__(potential, **kw)
@@ -59,12 +63,12 @@ class r_distribution(rv_potential):
         # vectorize mass function, which is scalar
         self._vec_cdf = np.vectorize(self._potential._mass)
 
-    def _cdf(self, r: ArrayLike, *args: Any, **kw: Any) -> NDArrayF:
+    def _cdf(self, r: Quantity, *args: Any, **kw: Any) -> NDArrayF:
         """Cumulative Distribution Function.
 
         Parameters
         ----------
-        r : array-like
+        r : Quantity ['length']
         *args
         **kwargs
 

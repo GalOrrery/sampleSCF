@@ -7,21 +7,20 @@
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 import abc
-import typing as T
-from typing import Any
+from typing import Any, Optional
 
 # THIRD PARTY
 from astropy.coordinates import PhysicsSphericalRepresentation
 from galpy.potential import SCFPotential
 
 # LOCAL
-from .rvs_azimuth import phi_distribution
-from .rvs_inclination import theta_distribution
-from .rvs_radial import r_distribution
+from .azimuth import exact_phi_distribution
+from .inclination import exact_theta_distribution
+from .radial import exact_r_distribution
 from sample_scf._typing import NDArrayF, RandomLike
-from sample_scf.base import SCFSamplerBase
+from sample_scf.base_multivariate import SCFSamplerBase
 
 __all__ = ["SCFSampler"]
 
@@ -53,8 +52,8 @@ class ExactSCFSampler(SCFSamplerBase):
         # make samplers
         total_mass = kw.pop("total_mass", None)
         self._r_distribution = r_distribution(potential, total_mass=total_mass, **kw)
-        self._theta_distribution = theta_distribution(potential, **kw)  # r=None
-        self._phi_distribution = phi_distribution(potential, **kw)  # r=None, theta=None
+        self._theta_distribution = exact_theta_distribution(potential, **kw)  # r=None
+        self._phi_distribution = exact_phi_distribution(potential, **kw)  # r=None, theta=None
 
     def rvs(
         self, *, size: Optional[int] = None, random_state: RandomLike = None

@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-# BUILT-IN
+# STDLIB
 from typing import Any, Optional, cast
 
 # THIRD PARTY
@@ -18,10 +18,9 @@ from numpy.typing import ArrayLike
 
 # LOCAL
 from sample_scf._typing import NDArrayF, RandomLike
-from sample_scf.base import rv_potential
-from sample_scf.utils import phiRSms
+from sample_scf.base_univariate import phi_distribution_base
 
-__all__ = ["phi_fixed_distribution", "phi_distribution"]
+__all__ = ["exact_phi_fixed_distribution", "exact_phi_distribution"]
 
 
 ##############################################################################
@@ -29,7 +28,7 @@ __all__ = ["phi_fixed_distribution", "phi_distribution"]
 ##############################################################################
 
 
-class phi_distribution_base(rv_potential):
+class exact_phi_distribution_base(phi_distribution_base):
     """Sample Azimuthal Coordinate.
 
     Parameters
@@ -47,8 +46,8 @@ class phi_distribution_base(rv_potential):
         self._lrange = np.arange(0, self._lmax + 1)
 
         # for compatibility
-        self._Rm: Optional[NDArrayF] = None
-        self._Sm: Optional[NDArrayF] = None
+        self._Sc: Optional[NDArrayF] = None
+        self._Ss: Optional[NDArrayF] = None
 
     def _cdf(self, phi: NDArrayF, *args: Any, **kw: Any) -> NDArrayF:
         r"""Cumulative Distribution Function.
@@ -68,7 +67,7 @@ class phi_distribution_base(rv_potential):
             output.
 
         """
-        Rm, Sm = kw.get("RSms", (self._Rm, self._Sm))  # (R/T, L)
+        Rm, Sm = kw.get("Scs", (self._Sc, self._Ss))  # (R/T, L)
 
         Phis: NDArrayF = np.atleast_1d(phi)[:, None]  # (P, {L})
 
@@ -94,7 +93,7 @@ class phi_distribution_base(rv_potential):
         return self._cdf(*(phi,) + args) - q
 
 
-class phi_fixed_distribution(phi_distribution_base):
+class exact_phi_fixed_distribution(exact_phi_distribution_base):
     """Sample Azimuthal Coordinate at fixed r, theta.
 
     Parameters
@@ -110,7 +109,7 @@ class phi_fixed_distribution(phi_distribution_base):
         # assign fixed r, theta
         self._r, self._theta = r, theta
         # and can compute the associated assymetry measures
-        self._Rm, self._Sm = phiRSms(potential, r, theta, grid=False, warn=False)
+        self._Sc, self._Ss = self.calculate_Scs(r, theta, grid=False, warn=False)
 
     def cdf(self, phi: NDArrayF, *args: Any, **kw: Any) -> NDArrayF:
         r"""Cumulative Distribution Function.
@@ -132,7 +131,7 @@ class phi_fixed_distribution(phi_distribution_base):
         return self._cdf(phi, *args, **kw)
 
 
-class phi_distribution(phi_distribution_base):
+class exact_phi_distribution(exact_phi_distribution_base):
     def _cdf(
         self,
         phi: ArrayLike,
@@ -165,8 +164,8 @@ class phi_distribution(phi_distribution_base):
         ValueError
             If 'r' or 'theta' are None.
         """
-        RSms = phiRSms(self._potential, cast(float, r), cast(float, theta), grid=False, warn=False)
-        cdf: NDArrayF = super()._cdf(phi, *args, RSms=RSms)
+        Scs = self.calculate_Scs(cast(float, r), cast(float, theta), grid=False, warn=False)
+        cdf: NDArrayF = super()._cdf(phi, *args, Scs=Scs)
         return cdf
 
     def cdf(self, phi: ArrayLike, *args: Any, r: float, theta: float) -> NDArrayF:

@@ -10,7 +10,7 @@ packagename.test
 
 """
 
-# BUILT-IN
+# STDLIB
 import copy
 import os
 
@@ -77,26 +77,26 @@ _hernquist_scf_potential = SCFPotential(Acos=Acos)
 _hernquist_scf_potential.turn_physical_on()
 
 
-# NFW
-nfw_potential = NFWPotential(normalize=1)
-nfw_potential.turn_physical_on()
-nfw_df = isotropicNFWdf(nfw_potential, rmax=1e4)
-# FIXME! load this up as a test data file
-fpath = get_pkg_data_path("tests/data/nfw.npz", package="sample_scf")
-try:
-    data = np.load(fpath)
-except FileNotFoundError:
-    a_scf = 80
-    Acos, Asin = scf_compute_coeffs_axi(nfw_potential.dens, N=40, L=30, a=a_scf)
-    np.savez(fpath, Acos=Acos, Asin=Asin, a_scf=a_scf)
-else:
-    data = np.load(fpath, allow_pickle=True)
-    Acos = copy.deepcopy(data["Acos"])
-    Asin = None
-    a_scf = data["a_scf"]
-
-_nfw_scf_potential = SCFPotential(Acos=Acos, Asin=None, a=a_scf, normalize=1.0)
-_nfw_scf_potential.turn_physical_on()
+# # NFW
+# nfw_potential = NFWPotential(normalize=1)
+# nfw_potential.turn_physical_on()
+# nfw_df = isotropicNFWdf(nfw_potential, rmax=1e4)
+# # FIXME! load this up as a test data file
+# fpath = get_pkg_data_path("tests/data/nfw.npz", package="sample_scf")
+# try:
+#     data = np.load(fpath)
+# except FileNotFoundError:
+#     a_scf = 80
+#     Acos, Asin = scf_compute_coeffs_axi(nfw_potential.dens, N=40, L=30, a=a_scf)
+#     np.savez(fpath, Acos=Acos, Asin=Asin, a_scf=a_scf)
+# else:
+#     data = np.load(fpath, allow_pickle=True)
+#     Acos = copy.deepcopy(data["Acos"])
+#     Asin = None
+#     a_scf = data["a_scf"]
+# 
+# _nfw_scf_potential = SCFPotential(Acos=Acos, Asin=None, a=a_scf, normalize=1.0)
+# _nfw_scf_potential.turn_physical_on()
 
 
 # Triaxial NFW
@@ -108,11 +108,11 @@ _nfw_scf_potential.turn_physical_on()
 # ------------------------
 cls_pot_kw = {
     _hernquist_scf_potential: {"total_mass": 1.0},
-    _nfw_scf_potential: {"total_mass": 1.0},
+    # _nfw_scf_potential: {"total_mass": 1.0},
 }
 theory = {
     _hernquist_scf_potential: hernquist_df,
-    _nfw_scf_potential: nfw_df,
+    # _nfw_scf_potential: nfw_df,
 }
 
 
@@ -125,10 +125,10 @@ def hernquist_scf_potential():
     return _hernquist_scf_potential
 
 
-@pytest.fixture(scope="session")
-def nfw_scf_potential():
-    """Make a SCF of a triaxial NFW potential."""
-    return _nfw_scf_potential
+# @pytest.fixture(scope="session")
+# def nfw_scf_potential():
+#     """Make a SCF of a triaxial NFW potential."""
+#     return _nfw_scf_potential
 
 
 @pytest.fixture(

@@ -18,7 +18,6 @@ from numpy.testing import assert_allclose
 from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
 from .test_base import SCFSamplerTestBase
 from sample_scf import conftest, exact
-from sample_scf.utils import difPls, r_of_zeta, thetaQls, x_of_theta
 
 ##############################################################################
 # PARAMETERS
@@ -63,9 +62,9 @@ class Test_SCFSampler(SCFSamplerTestBase):
         kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
         instance = self.cls(potentials, *self.cls_args, **kw)
 
-        assert isinstance(instance.rsampler, exact.r_distribution)
-        assert isinstance(instance.thetasampler, exact.theta_distribution)
-        assert isinstance(instance.phisampler, exact.phi_distribution)
+        assert isinstance(instance.r_distribution, exact.r_distribution)
+        assert isinstance(instance.theta_distribution, exact.theta_distribution)
+        assert isinstance(instance.phi_distribution, exact.phi_distribution)
 
     def test_rvs(self, sampler):
         """Test Random Variates Sampler."""
@@ -80,7 +79,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
         ],
     )
     def test_cdf(self, sampler, r, theta, phi, expected):
-        """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
+        """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 
     # ===============================================================

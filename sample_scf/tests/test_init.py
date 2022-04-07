@@ -5,12 +5,14 @@
 ##############################################################################
 # IMPORTS
 
-# BUILT-IN
+# STDLIB
 import inspect
 
 # LOCAL
 import sample_scf
-from sample_scf import core, exact, interpolated
+from sample_scf.core import SCFSampler
+from sample_scf.exact import ExactSCFSampler
+from sample_scf.interpolated import InterpolatedSCFSampler
 
 ##############################################################################
 # TESTS
@@ -20,10 +22,7 @@ from sample_scf import core, exact, interpolated
 def test_expected_imports():
     """Test can import expected modules and objects."""
     assert inspect.ismodule(sample_scf)
-    assert inspect.ismodule(core)
-    assert inspect.ismodule(exact)
-    assert inspect.ismodule(interpolated)
 
-    assert sample_scf.SCFSampler is core.SCFSampler
-    assert sample_scf.ExactSCFSampler is exact.SCFSampler
-    assert sample_scf.InterpolatedSCFSampler is interpolated.SCFSampler
+    assert sample_scf.SCFSampler is SCFSampler
+    assert sample_scf.ExactSCFSampler is ExactSCFSampler
+    assert sample_scf.InterpolatedSCFSampler is InterpolatedSCFSampler

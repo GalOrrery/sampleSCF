@@ -16,9 +16,12 @@ from numpy.testing import assert_allclose
 
 # LOCAL
 from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
-from .test_base import RVPotentialTest, SCFSamplerTestBase
-from sample_scf import conftest, interpolated
-from sample_scf.utils import phiRSms, r_of_zeta, thetaQls, x_of_theta, zeta_of_r
+from .test_base import BaseTest_rv_potential, SCFSamplerTestBase
+from sample_scf.representation import x_of_theta
+from sample_scf.interpolated import InterpolatedSCFSampler
+from sample_scf.interpolated.radial import r_distribution
+from sample_scf.interpolated.inclination import theta_distribution
+from sample_scf.interpolated.azimuth import phi_distribution
 
 ##############################################################################
 # PARAMETERS
@@ -39,7 +42,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.SCFSampler
+        self.cls = InterpolatedSCFSampler
         self.cls_args = (rgrid, tgrid, pgrid)
         self.cls_kwargs = {}
         self.cls_pot_kw = {}
@@ -68,7 +71,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
         ],
     )
     def test_cdf(self, sampler, r, theta, phi, expected):
-        """Test :meth:`sample_scf.base.SCFSamplerBase.cdf`."""
+        """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
         assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 
     # ===============================================================
@@ -86,7 +89,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
 ##############################################################################
 
 
-class InterpRVPotentialTest(RVPotentialTest):
+class InterpBaseTest_rv_potential(BaseTest_rv_potential):
     def test_init(self, sampler):
         """Test initialization."""
         potential = sampler._potential
@@ -123,13 +126,13 @@ class InterpRVPotentialTest(RVPotentialTest):
 # ----------------------------------------------------------------------------
 
 
-class Test_r_distribution(r_distributionTestBase, InterpRVPotentialTest):
+class Test_r_distribution(r_distributionTestBase, InterpBaseTest_rv_potential):
     """Test :class:`sample_scf.sample_interp.r_distribution`"""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.r_distribution
+        self.cls = r_distribution
         self.cls_args = (rgrid,)
         self.cls_kwargs = {}
         self.cls_pot_kw = {}
@@ -261,13 +264,13 @@ class Test_r_distribution(r_distributionTestBase, InterpRVPotentialTest):
 # ----------------------------------------------------------------------------
 
 
-class Test_theta_distribution(theta_distributionTestBase, InterpRVPotentialTest):
+class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_potential):
     """Test :class:`sample_scf.interpolated.theta_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.theta_distribution
+        self.cls = theta_distribution
         self.cls_args = (rgrid, tgrid)
 
         self.cdf_time_scale = 3e-4
@@ -322,7 +325,7 @@ class Test_theta_distribution(theta_distributionTestBase, InterpRVPotentialTest)
         """Test :meth:`sample_scf.interpolated.theta_distribution.cdf`."""
         assert_allclose(
             sampler.cdf(theta, r),
-            sampler._spl_cdf(zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
+            sampler._spl_cdf(FiniteSphericalRepresentation.calculate_zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
         )
 
     @pytest.mark.skip("TODO!")
@@ -426,13 +429,13 @@ class Test_theta_distribution(theta_distributionTestBase, InterpRVPotentialTest)
 # ----------------------------------------------------------------------------
 
 
-class Test_phi_distribution(phi_distributionTestBase, InterpRVPotentialTest):
+class Test_phi_distribution(phi_distributionTestBase, InterpBaseTest_rv_potential):
     """Test :class:`sample_scf.interpolated.phi_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = interpolated.phi_distribution
+        self.cls = phi_distribution
         self.cls_args = (rgrid, tgrid, pgrid)
 
         self.cdf_time_scale = 12e-4
@@ -446,9 +449,9 @@ class Test_phi_distribution(phi_distributionTestBase, InterpRVPotentialTest):
         # super().test_init(sampler)  # doesn't work  TODO!
 
         # a shape mismatch
-        RSms = phiRSms(sampler._potential, rgrid[1:-1], tgrid[1:-1], warn=False)
+        Scs = phiScs(sampler._potential, rgrid[1:-1], tgrid[1:-1], warn=False)
         with pytest.raises(ValueError, match="Rm, Sm must be shape"):
-            sampler.__class__(sampler._potential, rgrid, tgrid, pgrid, RSms=RSms)
+            sampler.__class__(sampler._potential, rgrid, tgrid, pgrid, Scs=Scs)
 
     @pytest.mark.skip("TODO!")
     def test__cdf(self):
