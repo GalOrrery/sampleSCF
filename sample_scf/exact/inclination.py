@@ -21,7 +21,7 @@ from numpy.typing import ArrayLike
 # LOCAL
 from sample_scf._typing import NDArrayF, RandomLike
 from sample_scf.base_univariate import theta_distribution_base
-from sample_scf.representation import x_of_theta, theta_of_x
+from sample_scf.representation import theta_of_x, x_of_theta
 
 __all__ = ["exact_theta_fixed_distribution", "exact_theta_distribution"]
 
@@ -77,35 +77,35 @@ class exact_theta_distribution_base(theta_distribution_base):
         cdf = term0 + np.nan_to_num((factor * (sumPlm1 - sumPlp1).T).T)  # (R, T)
         return cdf  # TODO! get rid of sf function
 
-#     @abc.abstractmethod
-#     def _cdf(self, x: NDArrayF, Qls: NDArrayF) -> NDArrayF:
-#         """Cumulative Distribution Function.
-# 
-#         .. math::
-# 
-#             F_{\theta}(\theta; r) = \frac{1 + \cos{\theta}}{2} +
-#                 \frac{1}{2 Q_0(r)}\sum_{\ell=1}^{L_{\max}}Q_{\ell}(r)
-#                 \frac{\sin(\theta) P_{\ell}^{1}(\cos{\theta})}{\ell(\ell+1)}
-# 
-#             Where
-# 
-#             Q_{\ell}(r) = \sum_{n=0}^{N_{\max}} N_{\ell 0} A_{n\ell 0}^{(\cos)}
-#                 \tilde{\rho}_{n\ell}(r)
-# 
-#         Parameters
-#         ----------
-#         x : number or (T,) array[number]
-#             :math:`x = \cos\theta`. Must be in the range [-1, 1]
-#         Qls : (R, L) array[float]
-#             Radially-dependent coefficients parameterizing the deviations from
-#             a uniform distribution on the inclination angle.
-# 
-#         Returns
-#         -------
-#         (R, T) array
-#         """
-#         sf = self._sf(x, Qls)
-#         return 1.0 - sf
+    #     @abc.abstractmethod
+    #     def _cdf(self, x: NDArrayF, Qls: NDArrayF) -> NDArrayF:
+    #         """Cumulative Distribution Function.
+    #
+    #         .. math::
+    #
+    #             F_{\theta}(\theta; r) = \frac{1 + \cos{\theta}}{2} +
+    #                 \frac{1}{2 Q_0(r)}\sum_{\ell=1}^{L_{\max}}Q_{\ell}(r)
+    #                 \frac{\sin(\theta) P_{\ell}^{1}(\cos{\theta})}{\ell(\ell+1)}
+    #
+    #             Where
+    #
+    #             Q_{\ell}(r) = \sum_{n=0}^{N_{\max}} N_{\ell 0} A_{n\ell 0}^{(\cos)}
+    #                 \tilde{\rho}_{n\ell}(r)
+    #
+    #         Parameters
+    #         ----------
+    #         x : number or (T,) array[number]
+    #             :math:`x = \cos\theta`. Must be in the range [-1, 1]
+    #         Qls : (R, L) array[float]
+    #             Radially-dependent coefficients parameterizing the deviations from
+    #             a uniform distribution on the inclination angle.
+    #
+    #         Returns
+    #         -------
+    #         (R, T) array
+    #         """
+    #         sf = self._sf(x, Qls)
+    #         return 1.0 - sf
 
     def _rvs(
         self,

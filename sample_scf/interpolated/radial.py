@@ -13,14 +13,15 @@ from typing import Any
 # THIRD PARTY
 import astropy.units as u
 import numpy as np
+from numpy import argsort
 from galpy.potential import SCFPotential
 from numpy.typing import ArrayLike
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 
 # LOCAL
 from sample_scf._typing import NDArrayF
 from sample_scf.base_univariate import r_distribution_base
-from sample_scf.representation import FiniteSphericalRepresentation, zeta_of_r, r_of_zeta
+from sample_scf.representation import FiniteSphericalRepresentation, r_of_zeta, zeta_of_r
 
 __all__ = ["interpolated_r_distribution"]
 
@@ -28,21 +29,6 @@ __all__ = ["interpolated_r_distribution"]
 ##############################################################################
 # CODE
 ##############################################################################
-
-def calculate_mass_cdf(potential: SCFPotential, radii: Quantity) -> NDArrayF:
-
-    rgalpy = radii.to_value(u.kpc) / potential._ro  # FIXME! wrong scaling
-    mgrid = np.array([potential._mass(x) for x in rgalpy])  # :(
-    # manual fixes for endpoints and normalization
-    ind = np.where(np.isnan(mgrid))[0]
-    mgrid[ind[radii[ind] == 0]] = 0
-    mgrid = (mgrid - np.nanmin(mgrid)) / (np.nanmax(mgrid) - np.nanmin(mgrid))  # rescale
-    infind = ind[radii[ind] == np.inf].squeeze()
-    mgrid[infind] = 1
-    if mgrid[infind - 1] == 1:  # munge the rescaling  TODO! do better
-        mgrid[infind - 1] -= min(1e-8, np.diff(mgrid[slice(infind - 2, infind)]) / 2)
-
-    return mgrid
 
 
 class interpolated_r_distribution(r_distribution_base):
@@ -62,35 +48,51 @@ class interpolated_r_distribution(r_distribution_base):
 
     _interp_in_zeta: bool
 
-    def __init__(
-        self, potential: SCFPotential, radii: Quantity, **kw: Any) -> None:
+    def __init__(self, potential: SCFPotential, radii: Quantity, **kw: Any) -> None:
         kw["a"], kw["b"] = 0, np.nanmax(radii)  # allowed range of r
         super().__init__(potential, **kw)
 
-        ### fraction of total mass grid ###
+        # fraction of total mass grid
         # work in zeta, not r, since it is more numerically stable
-        zetas_unsorted = zeta_of_r(radii, scale_radius=self.radial_scale_factor)  # (R,)
-        rsort = np.argsort(zetas_unsorted)
-        zetas = zetas_unsorted[rsort]
+        self._radii, self._zetas = self.order_radii(radii)
+        self._mgrid = self.calculate_cumulative_mass(self._radii)
 
-        mgrid = calculate_mass_cdf(potential, radii[rsort])
-
-        ### splines ###
         # make splines for fast calculation
-        self._spl_cdf = InterpolatedUnivariateSpline(
-            zetas,
-            mgrid,
-            ext="raise",
-            bbox=[-1, 1],
-            k=1,
-        )
-        self._spl_ppf = InterpolatedUnivariateSpline(
-            mgrid,
-            zetas,
-            ext="raise",
-            bbox=[0, 1],
-            k=1,
-        )
+        self._spl_cdf = IUS(self._zetas, self._mgrid, ext="raise", bbox=[-1, 1], k=1)
+        self._spl_ppf = IUS(self._mgrid, self._zetas, ext="raise", bbox=[0, 1], k=1)
+
+    def order_radii(self, radii: Quantity) -> Tuple[Quantity, NDArrayF]:
+        """Return ordered radii and zetas."""
+        rsort = argsort(radii)  # same as zeta ordering
+        radii = radii[rsort]
+        zeta = zeta_of_r(radii, scale_radius=self.radial_scale_factor)
+        return radii, zeta
+
+    def calculate_cumulative_mass(self, radii: Quantity) -> NDArrayF:
+        """Calculate cumulative mass function (ie the cdf).
+
+        Parameters
+        ----------
+        radii : (R,) Quantity['length', float]
+
+        Returns
+        -------
+        (R,) ndarray[float]
+        """
+        rgalpy = radii.to_value(u.kpc) / self.potential._ro
+        mgrid = np.array([self.potential._mass(x) for x in rgalpy])  # :(
+        # manual fixes for endpoints and normalization
+        ind = np.where(np.isnan(mgrid))[0]
+        mgrid[ind[radii[ind] == 0]] = 0
+        mgrid = (mgrid - np.nanmin(mgrid)) / (np.nanmax(mgrid) - np.nanmin(mgrid))  # rescale
+        infind = ind[radii[ind] == np.inf].squeeze()
+        mgrid[infind] = 1
+        if mgrid[infind - 1] == 1:  # munge the rescaling  TODO! do better
+            mgrid[infind - 1] -= min(1e-8, np.diff(mgrid[slice(infind - 2, infind)]) / 2)
+
+        return mgrid
+
+    # ---------------------------------------------------------------
 
     def cdf(self, radii: Quantity):  # TODO!
         return self._cdf(zeta_of_r(radii, self.radial_scale_factor))

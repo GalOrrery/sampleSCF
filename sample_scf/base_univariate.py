@@ -16,11 +16,11 @@ from typing import Any, List, Optional, Tuple, Type, TypeVar, Union
 import astropy.units as u
 import numpy as np
 from galpy.potential import SCFPotential
-from numpy import atleast_1d, arange, inf, pi, zeros, tril_indices, nan_to_num, array, isinf, sum
+from numpy import arange, array, atleast_1d, inf, isinf, nan_to_num, pi, sum, tril_indices, zeros
 from numpy.typing import ArrayLike
 from scipy._lib._util import check_random_state
-from scipy.stats import rv_continuous
 from scipy.special import lpmv
+from scipy.stats import rv_continuous
 
 # LOCAL
 from sample_scf._typing import NDArrayF, RandomGenerator, RandomLike
@@ -257,7 +257,6 @@ class theta_distribution_base(rv_potential):
         *args: Union[np.floating, ArrayLike],
         size: Optional[int] = None,
         random_state: RandomLike = None,
-        # return_thetas: bool = True,
     ) -> NDArrayF:
         return super().rvs(
             *args,
@@ -268,7 +267,7 @@ class theta_distribution_base(rv_potential):
 
     # ---------------------------------------------------------------
 
-    def calculate_Qls(self, r: Quantity, rhoTilde: Optional[NDArrayF]=None) -> NDArrayF:
+    def calculate_Qls(self, r: Quantity, rhoTilde: Optional[NDArrayF] = None) -> NDArrayF:
         r"""
         Compute the radial sums for inclination weighting factors.
         The weighting factors measure perturbations from spherical symmetry.
@@ -294,7 +293,7 @@ class theta_distribution_base(rv_potential):
         # this matrix can have incorrect NaN values when radii=0 because
         # rhoTilde will have +/- infs which when summed produce a NaN.
         # at r=0 this can be changed to 0.  # TODO! double confirm math
-        ind0 = (r == 0)
+        ind0 = r == 0
         if not sum(nan_to_num(rhoT[ind0, :, 0], posinf=1, neginf=-1)) == 0:
             # note: this if statement works even if ind0 is all False
             warnings.warn("Qls have non-cancelling infinities at r==0")
@@ -324,23 +323,24 @@ class phi_distribution_base(rv_potential):
 
     @staticmethod
     def _pnts_Scs(
-        r: NDArrayF,
+        radii: NDArrayF,
+        theta: NDArrayF,
         rhoTilde: NDArrayF,
         Acos: NDArrayF,
         Asin: NDArrayF,
-        theta: NDArrayF,
     ) -> Tuple[NDArrayF, NDArrayF]:
         """Radial and inclination sums for azimuthal weighting factors.
 
         Parameters
         ----------
-        rhoTilde: (R, N, L) ndarray
-        Acos, Asin : (N, L, L) ndarray
-        theta : (T,) ndarray[float]
+        radii : (R/T,) ndarray[float]
+        rhoTilde: (R/T, N, L) ndarray[float]
+        Acos, Asin : (N, L, L) ndarray[float]
+        theta : (R/T,) ndarray[float]
 
         Returns
         -------
-        Scm, Ssm : (R, T, L) ndarray
+        Scm, Ssm : (R, T, L) ndarray[float]
             Azimuthal weighting factors.
             Cosine and Sine, respectively.
 
@@ -365,7 +365,7 @@ class phi_distribution_base(rv_potential):
         ls, ms = tril_indices(L + 1)  # index set I_(L, M)
 
         lps = zeros((T, L + 1, M + 1))  # (R/T, L, M)
-        lps[:, ls, ms] = lpmv(ls[None, :], ms[None, :], xs[:, 0, 0, 0])
+        lps[:, ls, ms] = lpmv(ms[None, :], ls[None, :], xs[:, 0, 0, 0])
         Plm = lps[:, None, :, :]  # (R/T, {N}, L, M)
 
         # full S matrices (R/T, N, L, M)  # TODO! where's Nlm
@@ -373,10 +373,10 @@ class phi_distribution_base(rv_potential):
         Sclm = np.sum(Acos[None, :, :, :] * RhoT * Plm, axis=-3)
         Sslm = np.sum(Asin[None, :, :, :] * RhoT * Plm, axis=-3)
 
-        #     # fix adding +/- inf -> NaN. happens when r=0.
-        #     idx = np.all(np.isnan(Rlm[:, 0, :]), axis=-1)
-        #     Rlm[idx, 0, :] = nan_to_num(Rlm[idx, 0, :])
-        #     Slm[idx, 0, :] = nan_to_num(Slm[idx, 0, :])
+        # fix adding +/- inf -> NaN. happens when r=0.
+        idx = radii == 0
+        Sclm[idx] = nan_to_num(Sclm[idx], posinf=np.inf, neginf=-np.inf)
+        Sslm[idx] = nan_to_num(Sslm[idx], posinf=np.inf, neginf=-np.inf)
 
         # l'-sum  # FIXME! confirm correct som
         Scm = np.sum(Sclm, axis=-2)
@@ -386,23 +386,24 @@ class phi_distribution_base(rv_potential):
 
     @staticmethod
     def _grid_Scs(
-        r: NDArrayF,
+        radii: NDArrayF,
+        thetas: NDArrayF,
         rhoTilde: NDArrayF,
         Acos: NDArrayF,
         Asin: NDArrayF,
-        theta: NDArrayF,
     ) -> Tuple[NDArrayF, NDArrayF]:
         """Radial and inclination sums for azimuthal weighting factors.
 
         Parameters
         ----------
-        rhoTilde: (R, N, L) ndarray
-        Acos, Asin : (N, L, L) ndarray
-        theta : (T,) ndarray[float]
+        radii : (R,) ndarray[float]
+        rhoTilde: (R, N, L) ndarray[float]
+        Acos, Asin : (N, L, L) ndarray[float]
+        thetas : (T,) ndarray[float]
 
         Returns
         -------
-        Scm, Ssm : (R, T, L) ndarray
+        Scm, Ssm : (R, T, L) ndarray[float]
             Azimuthal weighting factors.
             Cosine and Sine, respectively.
 
@@ -412,7 +413,7 @@ class phi_distribution_base(rv_potential):
             For invalid values (inf addition -> Nan).
             For overflow encountered related to inf and 0 division.
         """
-        T: int = len(theta)
+        T: int = len(thetas)
         N = Acos.shape[0] - 1
         L = M = Acos.shape[1] - 1
 
@@ -420,14 +421,14 @@ class phi_distribution_base(rv_potential):
         RhoT = rhoTilde[:, None, :, :, None]  # (R, {T}, N, L, {M})
 
         # need r and theta to be arrays. Maintains units.
-        x: NDArrayF = x_of_theta(theta)  # (T,)
+        x: NDArrayF = x_of_theta(thetas << u.rad)  # (T,)
         xs = x[None, :, None, None, None]  # ({R}, T, {N}, {L}, {M})
 
         # legendre polynomials
         ls, ms = tril_indices(L + 1)  # index set I_(L, M)
 
         lps = zeros((T, L + 1, M + 1))  # (T, L, M)
-        lps[:, ls, ms] = lpmv(ls[None, ...], ms[None, ...], xs[0, :, 0, 0, 0, None])
+        lps[:, ls, ms] = lpmv(ms[None, ...], ls[None, ...], xs[0, :, 0, 0, 0, None])
         Plm = lps[None, :, None, :, :]  # ({R}, T, {N}, L, M)
 
         # full S matrices (R, T, N, L, M)
@@ -436,11 +437,11 @@ class phi_distribution_base(rv_potential):
         Sslm = np.sum(Asin[None, None, :, :, :] * RhoT * Plm, axis=-3)
 
         # fix adding +/- inf -> NaN. happens when r=0.
-        idx = (r == 0)
-        Sclm[idx] = nan_to_num(Sclm[idx])
-        Sslm[idx] = nan_to_num(Sslm[idx])
+        idx = radii == 0
+        Sclm[idx, ...] = nan_to_num(Sclm[idx, ...], posinf=np.inf, neginf=-np.inf)
+        Sslm[idx, ...] = nan_to_num(Sslm[idx, ...], posinf=np.inf, neginf=-np.inf)
 
-        # l'-sum  # FIXME! confirm correct som
+        # l'-sum
         Scm = np.sum(Sclm, axis=-2)
         Ssm = np.sum(Sslm, axis=-2)
 
@@ -458,10 +459,9 @@ class phi_distribution_base(rv_potential):
 
         Parameters
         ----------
-        pot : :class:`galpy.potential.SCFPotential`
-            Has coefficient matrices Acos and Asin with shape (N, L, L).
         r : float or (R,) ndarray[float]
         theta : float or (T,) ndarray[float]
+
         grid : bool, optional keyword-only
         warn : bool, optional keyword-only
 
@@ -472,24 +472,14 @@ class phi_distribution_base(rv_potential):
         """
         # need r and theta to be float arrays.
         rdtype = np.result_type(float, np.result_type(r))
-        radii: NDArrayF = atleast_1d(r)  # (R,)
+        radii: NDArrayF = atleast_1d(r).astype(rdtype)  # (R,)
         thetas: NDArrayF = atleast_1d(theta) << u.rad  # (T,)
 
         if not grid and len(thetas) != len(radii):
             raise ValueError
 
         # compute the r-dependent coefficient matrix $\tilde{\rho}$  # (R, N, L)
-        nmaxp1: int = self.potential._Acos.shape[0]
-        lmaxp1: int = self.potential._Acos.shape[1]
-        galpyrs = radii.to_value(u.kpc) / self.potential._ro
-        rhoTilde = nan_to_num(
-            array(
-                [self.potential._rhoTilde(r, N=nmaxp1, L=lmaxp1) for r in galpyrs]
-            ),  # TODO! vectorize
-            nan=0,
-            posinf=inf,
-            neginf=-inf,
-        )
+        rhoTilde = self.calculate_rhoTilde(radii)
 
         # pass to actual calculator, which takes the matrices and r, theta grids.
         with warnings.catch_warnings() if not warn else nullcontext():
@@ -501,11 +491,11 @@ class phi_distribution_base(rv_potential):
                 )
             func = self._grid_Scs if grid else self._pnts_Scs
             Sc, Ss = func(
-                r,
-                rhoTilde,
+                radii,
+                thetas,
+                rhoTilde=rhoTilde,
                 Acos=self.potential._Acos,
                 Asin=self.potential._Asin,
-                theta=thetas,
             )
 
         return Sc, Ss

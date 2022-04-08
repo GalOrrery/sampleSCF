@@ -11,12 +11,12 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from sampler_scf.base_multivariate import SCFSamplerBase
 
 # LOCAL
-from .test_base_multivariate import BaseTest_SCFSamplerBase,  radii, thetas, phis
-from sampler_scf.base_multivariate import SCFSamplerBase
+from .test_base_multivariate import BaseTest_SCFSamplerBase, phis, radii, thetas
 from sample_scf import ExactSCFSampler
-from sample_scf.exact import exact_r_distribution, exact_theta_distribution, exact_phi_distribution
+from sample_scf.exact import exact_phi_distribution, exact_r_distribution, exact_theta_distribution
 
 ##############################################################################
 # CODE

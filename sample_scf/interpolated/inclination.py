@@ -18,7 +18,8 @@ from typing import Any, Optional, Union, cast
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
+from numpy import argsort, linspace, pi, array
+from numpy.random import RandomState, Generator
 from galpy.potential import SCFPotential
 from numpy.typing import ArrayLike
 from scipy.interpolate import RectBivariateSpline, splev, splrep
@@ -28,6 +29,8 @@ from sample_scf._typing import NDArrayF, RandomLike
 from sample_scf.base_univariate import theta_distribution_base
 from sample_scf.exact.inclination import exact_theta_distribution_base
 from sample_scf.representation import x_of_theta, zeta_of_r
+
+from .radial import interpolated_r_distribution
 
 __all__ = ["interpolated_theta_distribution"]
 
@@ -44,9 +47,8 @@ class interpolated_theta_distribution(theta_distribution_base):
     Parameters
     ----------
     pot : `~galpy.potential.SCFPotential`
-    radii : (R,) |Quantity|
-        Must be in correct sort order
-    thetas : (T, ) ndarray ['radian'] or Quantity ['angle']
+    radii : (R,) Quantity['angle', float]
+    thetas : (T, ) Quantity ['angle', float]
     intrp_step : float, optional
         Interpolation step.
     **kw
@@ -62,22 +64,22 @@ class interpolated_theta_distribution(theta_distribution_base):
         nintrp: float = 1e3,
         **kw: Any,
     ) -> None:
-        Qls: NDArrayF = kw.pop("Qls", None)
+        rhoTilde: NDArrayF = kw.pop("rhoTilde", None)
         super().__init__(potential, **kw)  # allowed range of theta
 
-        self._theta_interpolant = np.linspace(0, np.pi, num=int(nintrp)) << u.rad
+        self._theta_interpolant = linspace(0, pi, num=int(nintrp)) << u.rad
         self._x_interpolant = x_of_theta(self._theta_interpolant)
-        self._q_interpolant = np.linspace(0, 1, len(self._theta_interpolant))
+        self._q_interpolant = linspace(0, 1, len(self._theta_interpolant))
 
-        zetas_unsorted = zeta_of_r(radii, scale_radius=self.radial_scale_factor)  # (R,)
-        rsort = np.argsort(zetas_unsorted)
-        zetas = zetas_unsorted[rsort]
+        # Sorting
+        radii, zetas = interpolated_r_distribution.order_radii(self, radii)
+        thetas, xs = interpolated_theta_distribution.order_thetas(thetas)
+        self._thetas, self._xs = thetas, xs
 
         # -------
         # build CDF in shells
 
-        xs = np.sort(x_of_theta(thetas << u.rad))  # (T,)  sorted for interpolation
-        Qls = Qls[rsort, :] if Qls is not None else self.calculate_Qls(radii)
+        Qls = self.calculate_Qls(radii, rhoTilde=rhoTilde)
         # check it's the right shape (R, L)
         if Qls.shape != (len(radii), self._lmax + 1):
             raise ValueError(f"Qls must be shape ({len(radii)}, {self._lmax + 1})")
@@ -88,7 +90,7 @@ class interpolated_theta_distribution(theta_distribution_base):
 
         # -------
         # interpolate
-        # currently assumes a regular grid
+        # assumes a regular grid
 
         self._spl_cdf = RectBivariateSpline(  # (R, T)
             zetas,
@@ -100,17 +102,14 @@ class interpolated_theta_distribution(theta_distribution_base):
             s=kw.get("s", 0),
         )
 
-        self._zetas = zetas  # FIXME!
-        # return
-
         # ppf, one per r, supersampled
         # TODO! see if can use this to avoid resplining
         _cdfs = self._spl_cdf(zetas, self._x_interpolant[::-1], grid=True)
         spls = (  # work through the (R, T) is anti-theta ordered
             splrep(_cdfs[i, ::-1], self._theta_interpolant.value, s=0)
             for i in range(_cdfs.shape[0])
-        )  # TODO! as generator
-        ppfs = np.array([splev(self._q_interpolant, spl, ext=0) for spl in spls])
+        )
+        ppfs = array([splev(self._q_interpolant, spl, ext=0) for spl in spls])
 
         self._spl_ppf = RectBivariateSpline(
             zetas,
@@ -121,6 +120,27 @@ class interpolated_theta_distribution(theta_distribution_base):
             ky=kw.get("ky", 3),
             s=kw.get("s", 0),
         )
+
+    @staticmethod
+    def order_thetas(thetas: Quantity) -> Tuple[Quantity, NDArrayF]:
+        """Return ordered thetas and xs.
+
+        Parameters
+        ----------
+        thetas : (T,) Quantity['angle', float]
+
+        Returns
+        -------
+        thetas : (T,) Quantity['angle', float]
+        xs : (T,) ndarray[float]
+        """
+        xs_unsorted = x_of_theta(thetas << u.rad)  # (T,)
+        xsort = argsort(xs_unsorted)  # opposite as theta sort
+        xs = xs_unsorted[xsort]
+        thetas = thetas[xsort]
+        return thetas, xs
+
+    # ---------------------------------------------------------------
 
     def _cdf(self, x: ArrayLike, *args: Any, zeta: ArrayLike, **kw: Any) -> NDArrayF:
         cdf: NDArrayF = self._spl_cdf(zeta, x, grid=False)
@@ -165,7 +185,7 @@ class interpolated_theta_distribution(theta_distribution_base):
         r: Quantity,
         *,
         size: Optional[int] = None,
-        random_state: Union[np.random.RandomState, np.random.Generator],
+        random_state: Union[RandomState, Generator],
         # return_thetas: bool = True,  # TODO!
     ) -> NDArrayF:
         """Random variate sampling.

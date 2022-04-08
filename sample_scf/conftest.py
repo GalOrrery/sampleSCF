@@ -94,7 +94,7 @@ _hernquist_scf_potential.turn_physical_on()
 #     Acos = copy.deepcopy(data["Acos"])
 #     Asin = None
 #     a_scf = data["a_scf"]
-# 
+#
 # _nfw_scf_potential = SCFPotential(Acos=Acos, Asin=None, a=a_scf, normalize=1.0)
 # _nfw_scf_potential.turn_physical_on()
 

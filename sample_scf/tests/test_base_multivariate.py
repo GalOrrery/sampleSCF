@@ -15,19 +15,19 @@ from abc import ABCMeta, abstractmethod
 import astropy.units as u
 import numpy as np
 import pytest
-from astropy.coordinates import BaseRepresentation
+from astropy.coordinates import BaseRepresentation, PhysicsSphericalRepresentation
 from galpy.potential import SCFPotential
 from numpy.testing import assert_allclose
-from astropy.coordinates import PhysicsSphericalRepresentation
-
 
 # LOCAL
-from sample_scf import conftest
-from sample_scf.base_univariate import r_distribution_base, theta_distribution_base, phi_distribution_base
-
 from .base import BaseTest_Sampler
-from .test_base_univariate import rvtestsampler, radii, thetas, phis
-
+from .test_base_univariate import phis, radii, rvtestsampler, thetas
+from sample_scf import conftest
+from sample_scf.base_univariate import (
+    phi_distribution_base,
+    r_distribution_base,
+    theta_distribution_base,
+)
 
 ##############################################################################
 # TESTS
@@ -117,7 +117,7 @@ class BaseTest_SCFSamplerBase(BaseTest_Sampler):
         assert sampler.lmax is sampler.r_distribution.lmax
 
     # ---------------------------------------------------------------
-    
+
     @abstractmethod
     def test_cdf(self, sampler, position, expected):
         """Test cdf method."""
@@ -127,14 +127,14 @@ class BaseTest_SCFSamplerBase(BaseTest_Sampler):
         assert False
 
         assert_allclose(cdf, expected, atol=1e-16)
-    
+
     @abstractmethod
     def test_rvs(self, sampler, size, random, expected):
         """Test rvs method.
-    
+
         The ``NumpyRNGContext`` is to control the random generator used to make
         the RandomState. For ``random != None``, this doesn't matter.
-    
+
         Each child class will need to define the set of expected results.
         """
         with NumpyRNGContext(4):
@@ -158,7 +158,6 @@ class BaseTest_SCFSamplerBase(BaseTest_Sampler):
 
 
 class Test_SCFSamplerBase(BaseTest_SCFSamplerBase):
-
     @pytest.fixture(scope="class")
     def rv_cls(self):
         return SCFSamplerBase
@@ -189,10 +188,10 @@ class Test_SCFSamplerBase(BaseTest_SCFSamplerBase):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
         cdf = sampler.cdf(r, theta, phi)
         assert np.allclose(cdf, expected, atol=1e-16)
-    
+
         # also test shape
         assert tuple(np.atleast_1d(np.squeeze((*np.shape(r), 3)))) == cdf.shape
-    
+
     @pytest.mark.parametrize(
         "id, size, random, vectorized",
         [
@@ -208,7 +207,7 @@ class Test_SCFSamplerBase(BaseTest_SCFSamplerBase):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.rvs`."""
         samples = sampler.rvs(size=size, random_state=random, vectorized=vectorized)
         sce = PhysicsSphericalRepresentation(**self.expected_rvs[id])
-    
+
         assert_allclose(samples.r, sce.r, atol=1e-16)
         assert_allclose(samples.theta.value, sce.theta.value, atol=1e-16)
         assert_allclose(samples.phi.value, sce.phi.value, atol=1e-16)

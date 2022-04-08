@@ -17,11 +17,11 @@ from numpy.testing import assert_allclose
 # LOCAL
 from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
 from .test_base import BaseTest_rv_potential, SCFSamplerTestBase
-from sample_scf.representation import x_of_theta
 from sample_scf.interpolated import InterpolatedSCFSampler
-from sample_scf.interpolated.radial import r_distribution
-from sample_scf.interpolated.inclination import theta_distribution
 from sample_scf.interpolated.azimuth import phi_distribution
+from sample_scf.interpolated.inclination import theta_distribution
+from sample_scf.interpolated.radial import r_distribution
+from sample_scf.representation import x_of_theta
 
 ##############################################################################
 # PARAMETERS
@@ -325,7 +325,11 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
         """Test :meth:`sample_scf.interpolated.theta_distribution.cdf`."""
         assert_allclose(
             sampler.cdf(theta, r),
-            sampler._spl_cdf(FiniteSphericalRepresentation.calculate_zeta_of_r(r), x_of_theta(u.Quantity(theta, u.rad)), grid=False),
+            sampler._spl_cdf(
+                FiniteSphericalRepresentation.calculate_zeta_of_r(r),
+                x_of_theta(u.Quantity(theta, u.rad)),
+                grid=False,
+            ),
         )
 
     @pytest.mark.skip("TODO!")

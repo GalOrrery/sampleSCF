@@ -12,10 +12,9 @@ import numpy as np
 import pytest
 
 # LOCAL
-from sample_scf import SCFSampler
-from sample_scf.exact import exact_r_distribution, exact_theta_distribution, exact_phi_distribution
-
 from .test_base_multivariate import BaseTest_SCFSamplerBase
+from sample_scf import SCFSampler
+from sample_scf.exact import exact_phi_distribution, exact_r_distribution, exact_theta_distribution
 
 ##############################################################################
 # TESTS
@@ -27,8 +26,8 @@ def test_MethodsMapping(potentials):
     # Good
     mm = MethodsMapping(
         r=exact_r_distribution(potentials, total_mass=1),
-        theta=exact_theta_distribution(potentials, )
-        phi=exact_phi_distribution(potentials)
+        theta=exact_theta_distribution(potentials),
+        phi=exact_phi_distribution(potentials),
     )
 
     assert False

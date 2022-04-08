@@ -5,9 +5,9 @@
 # IMPORTS
 
 # STDLIB
-from abc import ABCMeta, abstractmethod
 import inspect
 import time
+from abc import ABCMeta, abstractmethod
 
 # THIRD PARTY
 import astropy.coordinates as coord
@@ -20,8 +20,8 @@ from numpy.testing import assert_allclose
 from scipy.stats import rv_continuous
 
 # LOCAL
-from sample_scf.conftest import _hernquist_scf_potential
 from sample_scf.base_univariate import rv_potential
+from sample_scf.conftest import _hernquist_scf_potential
 
 ##############################################################################
 # TESTS
@@ -29,7 +29,6 @@ from sample_scf.base_univariate import rv_potential
 
 
 class BaseTest_Sampler(metaclass=ABCMeta):
-
     @pytest.fixture(
         scope="class",
         params=[
@@ -108,7 +107,7 @@ class BaseTest_Sampler(metaclass=ABCMeta):
 
     # ===============================================================
     # Method Tests
-    
+
     def test_init_wrong_potential(self, rv_cls, rv_cls_args, rv_cls_kw):
         """Test initialization when the potential is wrong."""
         # bad value

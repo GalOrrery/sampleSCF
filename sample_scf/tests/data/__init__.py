@@ -4,11 +4,7 @@
 This module contains package tests.
 """
 
+# LOCAL
 from . import data_Test_rv_potential
 
-
-results = {
-    "Test_rv_potential": data_Test_rv_potential.results
-}
-
-
+results = {"Test_rv_potential": data_Test_rv_potential.results}

@@ -9,29 +9,28 @@ from __future__ import annotations
 
 # STDLIB
 import warnings
-from inspect import isclass
 from contextlib import nullcontext
 from functools import singledispatch
+from inspect import isclass
 from typing import Optional, Tuple, Union, overload
 
 # THIRD PARTY
 import astropy.units as u
-from erfa import ufunc as erfa_ufunc
-from astropy.units import rad
 import numpy as np
 import numpy.typing as npt
-from astropy.units import Quantity, UnitConversionError
-from numpy import arccos, array, atleast_1d, cos, divide, nan_to_num
-from numpy.typing import ArrayLike
 from astropy.coordinates import (
     Angle,
     BaseRepresentation,
+    CartesianRepresentation,
+    Distance,
     PhysicsSphericalRepresentation,
     SphericalRepresentation,
     UnitSphericalRepresentation,
-    Distance,
-    CartesianRepresentation,
 )
+from astropy.units import Quantity, UnitConversionError, rad
+from erfa import ufunc as erfa_ufunc
+from numpy import arccos, array, atleast_1d, cos, divide, nan_to_num
+from numpy.typing import ArrayLike
 
 # LOCAL
 from ._typing import NDArrayF
@@ -42,8 +41,11 @@ __all__ = ["FiniteSphericalRepresentation"]
 # CODE
 ##############################################################################
 
+
 @singledispatch
-def _zeta_of_r(r: Union[ArrayLike, Quantity], /, scale_radius: Union[NDArrayF, Quantity, None]=None) -> NDArrayF:
+def _zeta_of_r(
+    r: Union[ArrayLike, Quantity], /, scale_radius: Union[NDArrayF, Quantity, None] = None
+) -> NDArrayF:
     # Default implementation, unless there's a registered specific method.
     # --------------
     # Checks: r must be non-negative, and the scale radius must be None or positive
@@ -64,6 +66,7 @@ def _zeta_of_r(r: Union[ArrayLike, Quantity], /, scale_radius: Union[NDArrayF, Q
     zeta: NDArrayF = nan_to_num(divide(r_a - 1, r_a + 1), nan=1.0)
     # TODO! fix with degeneracy in NaN when not due to division.
     return zeta
+
 
 @overload
 @_zeta_of_r.register
@@ -89,17 +92,17 @@ def zeta_of_r(r: Quantity, /, scale_radius=None) -> NDArrayF:
     return zeta.value
 
 
-def zeta_of_r(r: Union[NDArrayF, Quantity], /, scale_radius: Optional[Quantity]=None) -> NDArrayF:
+def zeta_of_r(r: Union[NDArrayF, Quantity], /, scale_radius: Optional[Quantity] = None) -> NDArrayF:
     r""":math:`\zeta(r) = \frac{r/a - 1}{r/a + 1}`.
-    
+
     Map the half-infinite domain [0, infinity) -> [-1, 1].
-    
+
     Parameters
     ----------
     r : (R,) Quantity['length'], position-only
     scale_radius : Quantity['length'] or None, optional
         If None (default), taken to be 1 in the units of `r`.
-    
+
     Returns
     -------
     (R,) array[floating]
@@ -126,17 +129,18 @@ zeta_of_r.__wrapped__ = _zeta_of_r  # For easier access.
 # -------------------------------------------------------------------
 
 
-def r_of_zeta(zeta: ndarray, /, scale_radius: Union[float, np.floating, Quantity, None] = None
+def r_of_zeta(
+    zeta: ndarray, /, scale_radius: Union[float, np.floating, Quantity, None] = None
 ) -> Union[NDArrayF, Quantity]:
     r""":math:`r = \frac{1 + \zeta}{1 - \zeta}`.
-    
+
     Map back to the half-infinite domain [0, infinity) <- [-1, 1].
-    
+
     Parameters
     ----------
     zeta : (R,) array[floating] or (R,) Quantity['dimensionless'], position-only
     scale_radius : Quantity['length'] or None, optional
-    
+
     Returns
     -------
     (R,) ndarray[float] or (R,) Quantity['length']
@@ -210,6 +214,7 @@ def theta_of_x(x: ArrayLike, unit=u.rad) -> Quantity:
 
 
 ###########################################################################
+
 
 class FiniteSphericalRepresentation(BaseRepresentation):
     r"""
@@ -450,7 +455,9 @@ class FiniteSphericalRepresentation(BaseRepresentation):
         """
         Converts spherical polar coordinates.
         """
-        return cls(phi=psphere.phi, x=psphere.theta, zeta=psphere.r, scale_radius=scale_radius, copy=False)
+        return cls(
+            phi=psphere.phi, x=psphere.theta, zeta=psphere.r, scale_radius=scale_radius, copy=False
+        )
 
     def transform(self, matrix, scale_radius: Optional[Quantity] = None):
         """Transform the spherical coordinates using a 3x3 matrix.

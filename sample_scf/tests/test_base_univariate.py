@@ -7,9 +7,9 @@
 # IMPORTS
 
 # STDLIB
-from abc import ABCMeta, abstractmethod
 import inspect
 import time
+from abc import ABCMeta, abstractmethod
 
 # THIRD PARTY
 import astropy.coordinates as coord
@@ -22,12 +22,10 @@ from numpy.testing import assert_allclose
 from scipy.stats import rv_continuous
 
 # LOCAL
-from sample_scf.conftest import _hernquist_scf_potential
-from sample_scf.base_univariate import rv_potential, r_distribution_base
-
-from .data import results
 from .base import BaseTest_Sampler
-
+from .data import results
+from sample_scf.base_univariate import r_distribution_base, rv_potential
+from sample_scf.conftest import _hernquist_scf_potential
 
 ##############################################################################
 # PARAMETERS
@@ -74,11 +72,11 @@ class BaseTest_rv_potential(BaseTest_Sampler):
     def test_radial_scale_factor_property(self, sampler):
         # Identity
         assert sampler.radial_scale_factor is sampler._radial_scale_factor
-    
+
     def test_nmax_property(self, sampler):
         # Identity
         assert sampler.nmax is sampler._nmax
-    
+
     def test_lmax_property(self, sampler):
         # Identity
         assert sampler.lmax is sampler._lmax
@@ -93,10 +91,10 @@ class BaseTest_rv_potential(BaseTest_Sampler):
     @abstractmethod
     def test_rvs(self, sampler, size, random, expected):
         """Test rvs method.
-    
+
         The ``NumpyRNGContext`` is to control the random generator used to make
         the RandomState. For ``random != None``, this doesn't matter.
-    
+
         Each child class will need to define the set of expected results.
         """
         with NumpyRNGContext(4):
@@ -224,7 +222,7 @@ class BaseTest_phi_distribution_base(BaseTest_rv_potential):
         return theta_distribution_base
 
     def cdf_time_arr(self, size: int):
-        return np.linspace(0, 2*np.pi, size)
+        return np.linspace(0, 2 * np.pi, size)
 
     # ===============================================================
     # Method Tests
@@ -244,7 +242,7 @@ class BaseTest_phi_distribution_base(BaseTest_rv_potential):
         assert False
 
     @pytest.mark.skip("TODO!")
-    def test_pnts_Scs(self, sampler):
+    def test_grid_Scs(self, sampler):
         """Test :class:`sample_scf.base_multivariate.phi_distribution_base._grid_Scs`."""
         assert False
 

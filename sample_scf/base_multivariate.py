@@ -19,8 +19,13 @@ from astropy.utils.misc import NumpyRNGContext
 from galpy.potential import SCFPotential
 
 # LOCAL
+from .base_univariate import (
+    phi_distribution_base,
+    r_distribution_base,
+    rv_potential,
+    theta_distribution_base,
+)
 from sample_scf._typing import NDArrayF, RandomGenerator, RandomLike
-from .base_univariate import theta_distribution_base, r_distribution_base, phi_distribution_base, rv_potential
 
 __all__: List[str] = ["SCFSamplerBase"]
 
@@ -95,7 +100,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
     @property
     def nmax(self) -> int:
         return self._r_distribution._nmax
-    
+
     @property
     def lmax(self) -> int:
         return self._r_distribution._lmax
@@ -104,11 +109,11 @@ class SCFSamplerBase(metaclass=ABCMeta):
 
     def calculate_rhoTilde(self, radii: Quantity) -> NDArrayF:
         """
-        
+
         Parameters
         ----------
         radii : (R,) Quantity['length', float]
-        
+
         returns
         -------
         (R, N, L) ndarray[float]
@@ -119,9 +124,9 @@ class SCFSamplerBase(metaclass=ABCMeta):
         r"""
         Radial sums for inclination weighting factors.
         The weighting factors measure perturbations from spherical symmetry.
-        
+
         :math:`Q_l(r) = \sum_{n=0}^{n_{\max}}A_{nl} \tilde{\rho}_{nl0}(r)`
-        
+
         Parameters
         ----------
         r : (R,) Quantity['kpc', float]
@@ -151,7 +156,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
         theta : float or (T,) ndarray[float]
         grid : bool, optional keyword-only
         warn : bool, optional keyword-only
-    
+
         Returns
         -------
         Rm, Sm : (R, T, L) ndarray[float]

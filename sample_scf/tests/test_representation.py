@@ -14,18 +14,23 @@ import re
 import astropy.units as u
 import numpy as np
 import pytest
+from astropy.coordinates import (
+    CartesianRepresentation,
+    Distance,
+    PhysicsSphericalRepresentation,
+    SphericalRepresentation,
+    UnitSphericalRepresentation,
+)
 from astropy.units import Quantity, UnitConversionError, allclose
-from astropy.coordinates import Distance, PhysicsSphericalRepresentation, SphericalRepresentation, UnitSphericalRepresentation, CartesianRepresentation
 
 # LOCAL
 from sample_scf.representation import (
     FiniteSphericalRepresentation,
-    zeta_of_r,
     r_of_zeta,
-    x_of_theta,
     theta_of_x,
+    x_of_theta,
+    zeta_of_r,
 )
-
 
 ##############################################################################
 # TESTS
@@ -280,7 +285,7 @@ class Test_FiniteSphericalRepresentation:
         x = rep.r * np.sin(rep.theta) * np.cos(rep.phi)
         y = rep.r * np.sin(rep.theta) * np.sin(rep.phi)
         z = rep.r * np.cos(rep.theta)
-        
+
         assert allclose(r.x, x)
         assert allclose(r.y, y)
         assert allclose(r.z, z)
@@ -290,7 +295,7 @@ class Test_FiniteSphericalRepresentation:
         cart = rep.to_cartesian()
 
         # Not passing a scale radius
-        r = rep_cls.from_cartesian(cart)        
+        r = rep_cls.from_cartesian(cart)
         assert rep != r
 
         r = rep_cls.from_cartesian(cart, scale_radius=scale_radius)
@@ -303,7 +308,7 @@ class Test_FiniteSphericalRepresentation:
         psphere = rep.represent_as(PhysicsSphericalRepresentation)
 
         # Not passing a scale radius
-        r = rep_cls.from_physicsspherical(psphere)        
+        r = rep_cls.from_physicsspherical(psphere)
         assert rep != r
 
         r = rep_cls.from_physicsspherical(psphere, scale_radius=scale_radius)
@@ -321,9 +326,7 @@ class Test_FiniteSphericalRepresentation:
         assert allclose(rep.zeta, r.zeta)
 
         # alternating coordinates
-        matrix = np.array([[0, 1, 0],
-                           [1, 0, 0],
-                           [0, 0, 1]])
+        matrix = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
         r = rep.transform(matrix, scale_radius)
         assert allclose(rep.phi, r.phi - np.pi / 2 * u.rad)
         assert allclose(rep.theta, r.theta)
@@ -361,7 +364,7 @@ def test_zeta_of_r_fail():
         (10, None, 9 / 11, False),
         ([0, 1, np.inf], None, [-1.0, 0.0, 1.0], False),
         ([0, 1, np.inf], None, [-1.0, 0.0, 1.0], False),
-    ]
+    ],
 )
 def test_zeta_of_r_ArrayLike(r, scale_radius, expected, warns):
     """Test :func:`sample_scf.representation.r_of_zeta` with wrong r type."""
@@ -508,9 +511,9 @@ def test_theta_of_x_roundtrip(theta):
     "x, expected",
     [
         (-1, np.pi),
-        (0, np.pi/2),
+        (0, np.pi / 2),
         (1, 0),
-        ([-1, 0, 1], [np.pi, np.pi/2, 0]),  # array
+        ([-1, 0, 1], [np.pi, np.pi / 2, 0]),  # array
     ],
 )
 def test_theta_of_x(x, expected):

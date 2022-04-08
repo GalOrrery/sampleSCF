@@ -15,9 +15,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-# LOCAL
-from sample_scf.interpolated.utils import 
-
 ##############################################################################
 # TESTS
 ##############################################################################

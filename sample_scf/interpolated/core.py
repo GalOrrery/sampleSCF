@@ -18,8 +18,8 @@ from typing import Any
 # THIRD PARTY
 import astropy.units as u
 import numpy as np
-from numpy import nan_to_num, inf, sum, isinf, array
 from galpy.potential import SCFPotential
+from numpy import array, inf, isinf, nan_to_num, sum
 
 # LOCAL
 from .azimuth import interpolated_phi_distribution
@@ -27,9 +27,9 @@ from .inclination import interpolated_theta_distribution
 from .radial import interpolated_r_distribution
 from sample_scf._typing import NDArrayF
 from sample_scf.base_multivariate import SCFSamplerBase
+from sample_scf.representation import x_of_theta
 
 __all__ = ["InterpolatedSCFSampler"]
-
 
 ##############################################################################
 # CODE
@@ -99,48 +99,61 @@ class InterpolatedSCFSampler(SCFSamplerBase):
         self, potential: SCFPotential, radii: Quantity, thetas: Quantity, phis: Quantity, **kw: Any
     ) -> None:
         super().__init__(potential, **kw)
-        # coefficients
-        Acos: np.ndarray = potential._Acos
-        Asin: np.ndarray = potential._Asin
 
-        rsort = np.argsort(radii)
-        radii = radii[rsort]
+        # -------------------
+        # Radial
 
-        # Compute the r-dependent coefficient matrix.
+        # sampler
+        self._r_distribution = interpolated_r_distribution(potential, radii, **kw)
+        radii = self._radii  # sorted
+
+        # compute the r-dependent coefficient matrix.
         rhoT = self.calculate_rhoTilde(radii)
 
-        # Compute the radial sums for inclination weighting factors.
-        Qls = kw.pop("Qls", None)
-        if Qls is None:
-            Qls = self.calculate_Qls(radii, rhoTilde=rhoT)
+        # -------------------
+        # Thetas
 
-        # ----------
-        # phi Rm, Sm
-        # radial and inclination sums
-
-        Scs = kw.pop("Scs", None)
-        if Scs is None:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    category=RuntimeWarning,
-                    message="(^invalid value)|(^overflow encountered)",
-                )
-                Scs = interpolated_phi_distribution._grid_Scs(
-                    radii, rhoT, Acos=Acos, Asin=Asin, theta=thetas
-                )
-
-        # ----------
-        # make samplers
-
-        self._r_distribution = interpolated_r_distribution(potential, radii, **kw)
+        # sampler
         self._theta_distribution = interpolated_theta_distribution(
-            potential, radii, thetas, Qls=Qls, **kw
+            potential, radii, thetas, rhoTilde=rhoT, **kw
         )
+        thetas, xs = self._thetas, self._xs  # sorted
+
+        # -------------------
+        # Phis
+
         self._phi_distribution = interpolated_phi_distribution(
-            potential, radii, thetas, phis, Scs=Scs, **kw
+            potential, radii, thetas, phis, rhoTilde=rhoT, **kw
         )
+
+    @property
+    def _radii(self) -> Quantity:
+        return self._r_distribution._radii
+
+    @property
+    def _zetas(self) -> Quantity:
+        return self._r_distribution._zetas
+
+    @property
+    def _thetas(self) -> Quantity:
+        return self._theta_distribution._thetas
+
+    @property
+    def _xs(self) -> Quantity:
+        return self._theta_distribution._xs
 
     @property
     def _Qls(self) -> NDArrayF:
         return self._theta_distribution._Qls
+
+    @property
+    def _phis(self) -> Quantity:
+        self._phi_distribution._phis
+
+    @property
+    def _Scms(self) -> NDArrayF:
+        return self._phi_distribution._Scms
+
+    @property
+    def _Ssms(self) -> NDArrayF:
+        return self._phi_distribution._Ssms
