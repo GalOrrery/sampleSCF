@@ -12,20 +12,15 @@ from abc import ABCMeta
 from typing import Any, List, Optional, Tuple, Type, TypeVar
 
 # THIRD PARTY
-import astropy.units as u
-import numpy as np
 from astropy.coordinates import BaseRepresentation, PhysicsSphericalRepresentation
-from astropy.utils.misc import NumpyRNGContext
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
+from numpy import column_stack
 
 # LOCAL
-from .base_univariate import (
-    phi_distribution_base,
-    r_distribution_base,
-    rv_potential,
-    theta_distribution_base,
-)
-from sample_scf._typing import NDArrayF, RandomGenerator, RandomLike
+from .base_univariate import _calculate_Qls, _calculate_rhoTilde, _calculate_Scs
+from .base_univariate import phi_distribution_base, r_distribution_base, theta_distribution_base
+from sample_scf._typing import NDArrayF, RandomLike
 
 __all__: List[str] = ["SCFSamplerBase"]
 
@@ -118,7 +113,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
         -------
         (R, N, L) ndarray[float]
         """
-        return rv_potential.calculate_rhoTilde(self, radii)
+        return _calculate_rhoTilde(self, radii)
 
     def calculate_Qls(self, r: Quantity, rhoTilde=None) -> NDArrayF:
         r"""
@@ -136,7 +131,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
         -------
         Ql : (R, L) array[float]
         """
-        return theta_distribution_base.calculate_Qls(self, r, rhoTilde=rhoTilde)
+        return _calculate_Qls(self, r=r, rhoTilde=rhoTilde)
 
     def calculate_Scs(
         self,
@@ -162,7 +157,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
         Rm, Sm : (R, T, L) ndarray[float]
             Azimuthal weighting factors.
         """
-        return phi_distribution_base.calculate_Scs(self, r, theta, grid=grid, warn=warn)
+        return _calculate_Scs(self, r=r, theta=theta, grid=grid, warn=warn)
 
     # -----------------------------------------------------
 
@@ -183,7 +178,7 @@ class SCFSamplerBase(metaclass=ABCMeta):
         Theta: NDArrayF = self.theta_distribution.cdf(theta, r=r)
         Phi: NDArrayF = self.phi_distribution.cdf(phi, r=r, theta=theta)
 
-        c: NDArrayF = np.c_[R, Theta, Phi].squeeze()
+        c: NDArrayF = column_stack((R, Theta, Phi)).squeeze()
         return c
 
     def rvs(

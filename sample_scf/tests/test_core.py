@@ -8,13 +8,14 @@
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
 import pytest
 
 # LOCAL
 from .test_base_multivariate import BaseTest_SCFSamplerBase
 from sample_scf import SCFSampler
 from sample_scf.exact import exact_phi_distribution, exact_r_distribution, exact_theta_distribution
+from sample_scf.core import MethodsMapping
+from numpy import allclose, atleast_1d, squeeze, shape
 
 ##############################################################################
 # TESTS
@@ -78,7 +79,7 @@ class Test_SCFSampler(BaseTest_SCFSamplerBase):
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
         cdf = sampler.cdf(r, theta, phi)
-        assert np.allclose(cdf, expected, atol=1e-16)
+        assert allclose(cdf, expected, atol=1e-16)
 
         # also test shape
-        assert tuple(np.atleast_1d(np.squeeze((*np.shape(r), 3)))) == cdf.shape
+        assert tuple(atleast_1d(squeeze((*shape(r), 3)))) == cdf.shape

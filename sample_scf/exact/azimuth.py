@@ -12,8 +12,8 @@ from typing import Any, Optional, cast
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
 from galpy.potential import SCFPotential
+from numpy import arange, atleast_1d, cos, nan_to_num, pi, sin, sum
 from numpy.typing import ArrayLike
 
 # LOCAL
@@ -41,9 +41,9 @@ class exact_phi_distribution_base(phi_distribution_base):
     """
 
     def __init__(self, potential: SCFPotential, **kw: Any) -> None:
-        kw["a"], kw["b"] = 0, 2 * np.pi
+        kw["a"], kw["b"] = 0, 2 * pi
         super().__init__(potential, **kw)
-        self._lrange = np.arange(0, self._lmax + 1)
+        self._lrange = arange(0, self._lmax + 1)
 
         # for compatibility
         self._Sc: Optional[NDArrayF] = None
@@ -69,21 +69,20 @@ class exact_phi_distribution_base(phi_distribution_base):
         """
         Rm, Sm = kw.get("Scs", (self._Sc, self._Ss))  # (R/T, L)
 
-        Phis: NDArrayF = np.atleast_1d(phi)[:, None]  # (P, {L})
+        Phis: NDArrayF = atleast_1d(phi)[:, None]  # (P, {L})
 
         # l = 0 : spherical symmetry
-        term0: NDArrayF = Phis[..., 0] / (2 * np.pi)  # (1, P)
+        term0: NDArrayF = Phis[..., 0] / (2 * pi)  # (1, P)
 
         # l = 1+ : non-symmetry
         factor = 1 / Rm[:, 0]  # R0  (R/T,)  # can be inf
-        ms = np.arange(1, self._lmax)[None, :]  # ({R/T/P}, L)
-        term1p = np.sum(
-            (Rm[:, 1:] * np.sin(ms * Phis) + Sm[:, 1:] * (1 - np.cos(ms * Phis)))
-            / (2 * np.pi * ms),
+        ms = arange(1, self._lmax)[None, :]  # ({R/T/P}, L)
+        term1p = sum(
+            (Rm[:, 1:] * sin(ms * Phis) + Sm[:, 1:] * (1 - cos(ms * Phis))) / (2 * pi * ms),
             axis=-1,
         )
 
-        cdf: NDArrayF = term0 + np.nan_to_num(factor * term1p)  # (R/T/P,)
+        cdf: NDArrayF = term0 + nan_to_num(factor * term1p)  # (R/T/P,)
         # 'factor' can be inf and term1p 0 => inf * 0 = nan -> 0
 
         return cdf

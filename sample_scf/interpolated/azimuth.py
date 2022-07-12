@@ -14,23 +14,23 @@ from __future__ import annotations
 # STDLIB
 import itertools
 import warnings
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Tuple
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
-from numpy import argsort, linspace, nan_to_num, pi, arange, sum, sin, cos, inf
+from numpy import arange, argsort, column_stack, cos, empty, float64, inf, linspace, meshgrid
+from numpy import nan_to_num, pi, random, sin, sum
 from numpy.typing import ArrayLike
 from scipy.interpolate import RegularGridInterpolator, splev, splrep
 
 # LOCAL
-from sample_scf._typing import NDArrayF, RandomLike
-from sample_scf.base_univariate import phi_distribution_base
-from sample_scf.representation import x_of_theta, zeta_of_r
-
-from .radial import interpolated_r_distribution
 from .inclination import interpolated_theta_distribution
+from .radial import interpolated_r_distribution
+from sample_scf._typing import NDArrayF, RandomLike
+from sample_scf.base_univariate import _grid_Scs, phi_distribution_base
+from sample_scf.representation import x_of_theta, zeta_of_r
 
 __all__ = ["interpolated_phi_distribution"]
 
@@ -85,14 +85,14 @@ class interpolated_phi_distribution(phi_distribution_base):
         self._phis = phis
 
         lR, lT, _ = len(radii), len(thetas), len(phis)
-        Phis = phis[None, None, :, None]  # ({R}, {T}, P, {L})
+        Phis = phis.to_value(u.rad)[None, None, :, None]  # ({R}, {T}, P, {L})
 
         # get Sc, Ss. We have defaults from above.
         if rhoTilde is None:
             rhoTilde = self.calculate_rhoTilde(radii)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", **_phi_filter)
-            Sc, Ss = interpolated_phi_distribution._grid_Scs(
+            Sc, Ss = _grid_Scs(
                 radii, thetas, rhoTilde=rhoTilde, Acos=potential._Acos, Asin=potential._Asin
             )  # (R, T, L)
         self._Scms, self._Ssms = Sc, Ss
@@ -117,7 +117,7 @@ class interpolated_phi_distribution(phi_distribution_base):
 
         # interpolate
         # currently assumes a regular grid
-        self._spl_cdf = RegularGridInterpolator((zetas, xs, phis), cdfs)
+        self._spl_cdf = RegularGridInterpolator((zetas, xs, phis.to_value(u.rad)), cdfs)
 
         # -------
         # ppf
@@ -125,19 +125,19 @@ class interpolated_phi_distribution(phi_distribution_base):
         # cdfstrategy = get_strategy(cdf_strategy)
 
         # start by supersampling
-        Zetas, Xs, Phis = np.meshgrid(zetas, xs, self._phi_interpolant.value, indexing="ij")
+        Zetas, Xs, Phis = meshgrid(zetas, xs, self._phi_interpolant.value, indexing="ij")
         _cdfs = self._spl_cdf((Zetas.ravel(), Xs.ravel(), Phis.ravel()))
         _cdfs.shape = (lR, lT, len(self._phi_interpolant))
 
         self._cdfs = _cdfs
-        return
+        # return
 
         # build reverse spline
         # TODO! vectorize
-        ppfs = np.empty((lR, lT, self._ninterpolant), dtype=np.float64)
+        ppfs = empty((lR, lT, self._ninterpolant), dtype=float64)
         for (i, j) in itertools.product(*map(range, ppfs.shape[:2])):
             try:
-                spl = splrep(_cdfs[i, j, :], self._phi_interpolant, s=0)
+                spl = splrep(_cdfs[i, j, :], self._phi_interpolant.value, s=0)
             except ValueError:  # CDF is non-real
                 # STDLIB
                 import pdb
@@ -174,7 +174,7 @@ class interpolated_phi_distribution(phi_distribution_base):
     def _ppf(self, q: ArrayLike, *args: Any, r: ArrayLike, theta: NDArrayF, **kw: Any) -> NDArrayF:
         zeta = zeta_of_r(r, self._radial_scale_factor)
         x = x_of_theta(theta << u.rad)
-        ppf: NDArrayF = self._spl_ppf(np.c_[zeta, x, q])
+        ppf: NDArrayF = self._spl_ppf(column_stack((zeta, x, q)))
         return ppf
 
     def _rvs(
@@ -182,7 +182,7 @@ class interpolated_phi_distribution(phi_distribution_base):
         r: NDArrayF,
         theta: NDArrayF,
         *args: Any,
-        random_state: np.random.RandomState,
+        random_state: random.RandomState,
         size: Optional[int] = None,
     ) -> NDArrayF:
         # Use inverse cdf algorithm for RV generation.

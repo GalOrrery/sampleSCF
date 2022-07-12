@@ -9,22 +9,29 @@
 # THIRD PARTY
 import astropy.units as u
 import matplotlib.pyplot as plt
-import numpy as np
 import pytest
 from astropy.utils.misc import NumpyRNGContext
+from numpy import allclose, atleast_1d, atleast_2d, concatenate, geomspace, isclose, linspace, pi
+from numpy import random
 from numpy.testing import assert_allclose
 
 # LOCAL
 from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
 from .test_base import SCFSamplerTestBase
-from sample_scf import conftest, exact
+from sample_scf import conftest
+from sample_scf.base_univariate import _calculate_Qls
+from sample_scf.exact import ExactSCFSampler
+from sample_scf.exact.azimuth import exact_phi_distribution
+from sample_scf.exact.inclination import exact_theta_distribution
+from sample_scf.exact.radial import exact_r_distribution
+from sample_scf.representation import r_of_zeta, x_of_theta
 
 ##############################################################################
 # PARAMETERS
 
-rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 29)))  # same shape as ↓
-tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
-pgrid = np.linspace(0, 2 * np.pi, 30)
+rgrid = concatenate(([0], geomspace(1e-1, 1e3, 29)))  # same shape as ↓
+tgrid = linspace(-pi / 2, pi / 2, 30)
+pgrid = linspace(0, 2 * pi, 30)
 
 
 ##############################################################################
@@ -39,7 +46,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
         super().setup_class(self)
 
         # sampler initialization
-        self.cls = exact.SCFSampler
+        self.cls = ExactSCFSampler
         self.cls_args = ()
         self.cls_kwargs = {}
         self.cls_pot_kw = conftest.cls_pot_kw
@@ -62,9 +69,9 @@ class Test_SCFSampler(SCFSamplerTestBase):
         kw = {**self.cls_kwargs, **self.cls_pot_kw.get(potentials, {})}
         instance = self.cls(potentials, *self.cls_args, **kw)
 
-        assert isinstance(instance.r_distribution, exact.r_distribution)
-        assert isinstance(instance.theta_distribution, exact.theta_distribution)
-        assert isinstance(instance.phi_distribution, exact.phi_distribution)
+        assert isinstance(instance.r_distribution, exact_r_distribution)
+        assert isinstance(instance.theta_distribution, exact_theta_distribution)
+        assert isinstance(instance.phi_distribution, exact_phi_distribution)
 
     def test_rvs(self, sampler):
         """Test Random Variates Sampler."""
@@ -80,7 +87,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
     )
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
-        assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
+        assert allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 
     # ===============================================================
     # Plot Tests
@@ -159,7 +166,7 @@ class Test_r_distribution(r_distributionTestBase):
         super().setup_class(self)
 
         # sampler initialization
-        self.cls = exact.r_distribution
+        self.cls = exact_r_distribution
         self.cls_args = ()
         self.cls_kwargs = {}
         self.cls_pot_kw = conftest.cls_pot_kw
@@ -185,13 +192,13 @@ class Test_r_distribution(r_distributionTestBase):
         # test if mgrid is SCFPotential
 
     # TODO! use hypothesis
-    @pytest.mark.parametrize("r", np.random.default_rng(0).uniform(0, 1e4, 10))
+    @pytest.mark.parametrize("r", random.default_rng(0).uniform(0, 1e4, 10))
     def test__cdf(self, sampler, r):
         """Test :meth:`sample_scf.exact.r_distribution._cdf`."""
         super().test__cdf(sampler, r)
 
         # expected
-        mass = np.atleast_1d(sampler._potential._mass(r)) / sampler._mtot
+        mass = atleast_1d(sampler._potential._mass(r)) / sampler._mtot
         assert_allclose(sampler._cdf(r), mass)
 
     @pytest.mark.parametrize(
@@ -286,7 +293,7 @@ class Test_theta_distribution(theta_distributionTestBase):
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = exact.theta_distribution
+        self.cls = exact_theta_distribution
 
         self.cdf_time_scale = 1e-3
         self.rvs_time_scale = 7e-2
@@ -300,46 +307,46 @@ class Test_theta_distribution(theta_distributionTestBase):
         "x, r",
         [
             *zip(
-                np.random.default_rng(1).uniform(-1, 1, 10),
-                r_of_zeta(np.random.default_rng(1).uniform(-1, 1, 10)),
+                random.default_rng(1).uniform(-1, 1, 10),
+                r_of_zeta(random.default_rng(1).uniform(-1, 1, 10)),
             ),
         ],
     )
     def test__cdf(self, sampler, x, r):
         """Test :meth:`sample_scf.exact.theta_distribution._cdf`."""
-        Qls = np.atleast_2d(thetaQls(sampler._potential, r))
+        Qls = atleast_2d(_calculate_Qls(sampler._potential, r))
 
         # basically a test it's Hernquist, only the first term matters
-        if np.allclose(Qls[:, 1:], 0.0):
+        if allclose(Qls[:, 1:], 0.0):
             assert_allclose(sampler._cdf(x, r=r), 0.5 * (x + 1.0))
 
         else:
-            # TODO! a more robust test
+            assert False
 
             # l = 0
-            term0 = 0.5 * (x + 1.0)  # (T,)
-            # l = 1+ : non-symmetry
-            factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
-            term1p = np.sum(
-                (Qls[None, :, 1:] * difPls(x, self._lmax - 1).T[:, None, :]).T,
-                axis=0,
-            )
-            cdf = term0[None, :] + np.nan_to_num(factor[:, None] * term1p)  # (R, T)
+            # term0 = 0.5 * (x + 1.0)  # (T,)
+            # # l = 1+ : non-symmetry
+            # factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
+            # term1p = sum(
+            #     (Qls[None, :, 1:] * difPls(x, self._lmax - 1).T[:, None, :]).T,
+            #     axis=0,
+            # )
+            # cdf = term0[None, :] + nan_to_num(factor[:, None] * term1p)  # (R, T)
 
-            assert_allclose(sampler._cdf(x, r=r), cdf)
+            # assert_allclose(sampler._cdf(x, r=r), cdf)
 
-    @pytest.mark.parametrize("r", r_of_zeta(np.random.default_rng(0).uniform(-1, 1, 10)))
+    @pytest.mark.parametrize("r", r_of_zeta(random.default_rng(0).uniform(-1, 1, 10)))
     def test__cdf_edge(self, sampler, r):
         """Test :meth:`sample_scf.exact.r_distribution._cdf`."""
-        assert np.isclose(sampler._cdf(-1, r=r), 0.0, atol=1e-16)
-        assert np.isclose(sampler._cdf(1, r=r), 1.0, atol=1e-16)
+        assert isclose(sampler._cdf(-1, r=r), 0.0, atol=1e-16)
+        assert isclose(sampler._cdf(1, r=r), 1.0, atol=1e-16)
 
     @pytest.mark.parametrize(
         "theta, r",
         [
             *zip(
-                np.random.default_rng(0).uniform(-np.pi / 2, np.pi / 2, 10),
-                np.random.default_rng(1).uniform(0, 1e4, 10),
+                random.default_rng(0).uniform(-pi / 2, pi / 2, 10),
+                random.default_rng(1).uniform(0, 1e4, 10),
             ),
         ],
     )
@@ -385,12 +392,12 @@ class Test_theta_distribution(theta_distributionTestBase):
         )
         kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
         ax.plot(tgrid, sampler.cdf(tgrid, r=10), **kw)
-        ax.axvline(-np.pi / 2, c="tab:blue")
-        ax.axhline(sampler.cdf(-np.pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
+        ax.axvline(-pi / 2, c="tab:blue")
+        ax.axhline(sampler.cdf(-pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
         ax.axvline(0, c="tab:green")
         ax.axhline(sampler.cdf(0, r=10), c="tab:green", label=r"$\theta=0$")
-        ax.axvline(np.pi / 2, c="tab:red")
-        ax.axhline(sampler.cdf(np.pi / 2, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
+        ax.axvline(pi / 2, c="tab:red")
+        ax.axhline(sampler.cdf(pi / 2, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
         ax.legend(loc="lower right")
 
         # plot 2
@@ -423,7 +430,7 @@ class Test_theta_distribution(theta_distributionTestBase):
             sample = sample[sample < 1e4]
 
             theory = self.theory[sampler._potential].sample(n=int(1e6)).theta()
-            theory -= np.pi / 2 * u.rad
+            theory -= pi / 2 * u.rad
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -456,7 +463,7 @@ class Test_phi_distribution(phi_distributionTestBase):
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = exact.phi_distribution
+        self.cls = exact_phi_distribution
 
         self.cdf_time_scale = 3e-3
         self.rvs_time_scale = 3e-3
@@ -501,13 +508,13 @@ class Test_phi_distribution(phi_distributionTestBase):
             ylabel=r"CDF($\phi$)",
         )
         kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
-        ax.plot(pgrid, sampler.cdf(pgrid, r=10, theta=np.pi / 6), **kw)
+        ax.plot(pgrid, sampler.cdf(pgrid, r=10, theta=pi / 6), **kw)
         ax.axvline(0, c="tab:blue")
-        ax.axhline(sampler.cdf(0, r=10, theta=np.pi / 6), c="tab:blue", label=r"$\phi=0$")
-        ax.axvline(np.pi, c="tab:green")
-        ax.axhline(sampler.cdf(np.pi, r=10, theta=np.pi / 6), c="tab:green", label=r"$\phi=\pi$")
-        ax.axvline(2 * np.pi, c="tab:red")
-        ax.axhline(sampler.cdf(2 * np.pi, r=10, theta=np.pi / 6), c="tab:red", label=r"$\phi=2\pi$")
+        ax.axhline(sampler.cdf(0, r=10, theta=pi / 6), c="tab:blue", label=r"$\phi=0$")
+        ax.axvline(pi, c="tab:green")
+        ax.axhline(sampler.cdf(pi, r=10, theta=pi / 6), c="tab:green", label=r"$\phi=\pi$")
+        ax.axvline(2 * pi, c="tab:red")
+        ax.axhline(sampler.cdf(2 * pi, r=10, theta=pi / 6), c="tab:red", label=r"$\phi=2\pi$")
         ax.legend(loc="lower right")
 
         fig.tight_layout()
@@ -520,7 +527,7 @@ class Test_phi_distribution(phi_distributionTestBase):
     def test_exact_phi_sampling_plot(self, sampler):
         """Test sampling."""
         with NumpyRNGContext(0):  # control the random numbers
-            sample = sampler.rvs(size=int(1e3), r=10, theta=np.pi / 6)
+            sample = sampler.rvs(size=int(1e3), r=10, theta=pi / 6)
             sample = sample[sample < 1e4]
 
             theory = self.theory[sampler._potential].sample(n=int(1e3)).phi()

@@ -8,16 +8,11 @@
 
 # STDLIB
 import inspect
-import time
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 # THIRD PARTY
-import astropy.coordinates as coord
-import astropy.units as u
-import numpy as np
 import pytest
 from astropy.utils.misc import NumpyRNGContext
-from galpy.potential import KeplerPotential
 from numpy.testing import assert_allclose
 from scipy.stats import rv_continuous
 
@@ -25,14 +20,22 @@ from scipy.stats import rv_continuous
 from .base import BaseTest_Sampler
 from .data import results
 from sample_scf.base_univariate import r_distribution_base, rv_potential
-from sample_scf.conftest import _hernquist_scf_potential
+from numpy import concatenate, geomspace, inf, pi, linspace, random, atleast_1d
+
+# import time
+# from abc import ABCMeta
+# from galpy.potential import KeplerPotential
+# from sample_scf.conftest import _hernquist_scf_potential
+# import astropy.coordinates as coord
+# import astropy.units as u
+
 
 ##############################################################################
 # PARAMETERS
 
-radii = np.concatenate(([0], np.geomspace(1e-1, 1e3, 28), [np.inf]))  # same shape as ↓
-thetas = np.linspace(0, np.pi, 30)
-phis = np.linspace(0, 2 * np.pi, 30)
+radii = concatenate(([0], geomspace(1e-1, 1e3, 28), [inf]))  # same shape as ↓
+thetas = linspace(0, pi, 30)
+phis = linspace(0, 2 * pi, 30)
 
 
 ##############################################################################
@@ -86,7 +89,7 @@ class BaseTest_rv_potential(BaseTest_Sampler):
     @abstractmethod
     def test_cdf(self, sampler, position, expected):
         """Test cdf method."""
-        assert_allclose(sampler.cdf(size=size, *position), expected, atol=1e-16)
+        assert_allclose(sampler.cdf(size=len(expected), *position), expected, atol=1e-16)
 
     @abstractmethod
     def test_rvs(self, sampler, size, random, expected):
@@ -114,9 +117,9 @@ class rvtestsampler(rv_potential):
 
     def _rvs(self, *args, size=None, random_state=None):
         if random_state is None:
-            random_state = np.random
+            random_state = random
 
-        return np.atleast_1d(random_state.uniform(size=size))
+        return atleast_1d(random_state.uniform(size=size))
 
 
 class Test_rv_potential(BaseTest_rv_potential):
@@ -188,17 +191,18 @@ class BaseTest_theta_distribution_base(BaseTest_rv_potential):
     @pytest.fixture(scope="class")
     @abstractmethod
     def rv_cls(self):
-        return theta_distribution_base
+        # return theta_distribution_base
+        raise NotImplementedError
 
     def cdf_time_arr(self, size: int):
-        return np.linspace(0, np.pi, size)
+        return linspace(0, pi, size)
 
     # ===============================================================
     # Method Tests
 
     def test_init_attrs(self, sampler):
         """Test attributes set at initialization."""
-        super().test_init_attrs(sampler)
+        # super().test_init_attrs(sampler)
 
         assert hasattr(sampler, "_lrange")
         assert min(sampler._lrange) == 0
@@ -219,17 +223,19 @@ class BaseTest_phi_distribution_base(BaseTest_rv_potential):
     @pytest.fixture(scope="class")
     @abstractmethod
     def rv_cls(self):
-        return theta_distribution_base
+        # return theta_distribution_base
+        raise NotImplementedError
 
     def cdf_time_arr(self, size: int):
-        return np.linspace(0, 2 * np.pi, size)
+        return linspace(0, 2 * pi, size)
 
     # ===============================================================
     # Method Tests
 
     def test_init_attrs(self, sampler):
         """Test attributes set at initialization."""
-        super().test_init_attrs(sampler)
+        # super().test_init_attrs(sampler)
+        raise NotImplementedError
 
         # l-range
         assert hasattr(sampler, "_lrange")

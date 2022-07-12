@@ -8,13 +8,13 @@
 from __future__ import annotations
 
 # STDLIB
-import abc
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Union
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
+from numpy import atleast_1d, atleast_2d, floating, nan_to_num, pad
 from numpy.polynomial.legendre import legval
 from numpy.typing import ArrayLike
 
@@ -39,19 +39,19 @@ class exact_theta_distribution_base(theta_distribution_base):
 
         .. math::
 
-            F_{\theta}(\theta; r) = \frac{1 + \cos{\theta}}{2} +
-                \frac{1}{2 Q_0(r)}\sum_{\ell=1}^{L_{\max}}Q_{\ell}(r)
-                \frac{\sin(\theta) P_{\ell}^{1}(\cos{\theta})}{\ell(\ell+1)}
+            F_{\theta}(\theta; r) = \frac{1 + \\cos{\theta}}{2} +
+                \frac{1}{2 Q_0(r)}\\sum_{\\ell=1}^{L_{\\max}}Q_{\\ell}(r)
+                \frac{\\sin(\theta) P_{\\ell}^{1}(\\cos{\theta})}{\\ell(\\ell+1)}
 
             Where
 
-            Q_{\ell}(r) = \sum_{n=0}^{N_{\max}} N_{\ell 0} A_{n\ell 0}^{(\cos)}
-                \tilde{\rho}_{n\ell}(r)
+            Q_{\\ell}(r) = \\sum_{n=0}^{N_{\\max}} N_{\\ell 0} A_{n\\ell 0}^{(\\cos)}
+                \tilde{\rho}_{n\\ell}(r)
 
         Parameters
         ----------
         x : number or (T,) array[number]
-            :math:`x = \cos\theta`. Must be in the range [-1, 1]
+            :math:`x = \\cos\theta`. Must be in the range [-1, 1]
         Qls : (R, L) array[float]
             Radially-dependent coefficients parameterizing the deviations from
             a uniform distribution on the inclination angle.
@@ -60,8 +60,8 @@ class exact_theta_distribution_base(theta_distribution_base):
         -------
         (R, T) array
         """
-        xs = np.atleast_1d(x)  # (T,)
-        Qls = np.atleast_2d(Qls)  # (R, L)
+        xs = atleast_1d(x)  # (T,)
+        Qls = atleast_2d(Qls)  # (R, L)
 
         # l = 0
         term0 = 0.5 * (1.0 - xs)  # (T,)
@@ -69,12 +69,12 @@ class exact_theta_distribution_base(theta_distribution_base):
         factor = 1.0 / (2.0 * Qls[:, 0])  # (R,)
 
         wQls = Qls[:, 1:] / (2 * self._lrange[None, 1:] + 1)  # apply over (L,) dimension
-        wQls_lp1 = np.pad(wQls, [[0, 0], [2, 0]])  # pad start of (L,) dimension
+        wQls_lp1 = pad(wQls, [[0, 0], [2, 0]])  # pad start of (L,) dimension
 
         sumPlp1 = legval(xs, wQls_lp1.T, tensor=True)  # (R, T)
         sumPlm1 = legval(xs, wQls.T, tensor=True)  # (R, T)
 
-        cdf = term0 + np.nan_to_num((factor * (sumPlm1 - sumPlp1).T).T)  # (R, T)
+        cdf = term0 + nan_to_num((factor * (sumPlm1 - sumPlp1).T).T)  # (R, T)
         return cdf  # TODO! get rid of sf function
 
     #     @abc.abstractmethod
@@ -109,7 +109,7 @@ class exact_theta_distribution_base(theta_distribution_base):
 
     def _rvs(
         self,
-        *args: Union[np.floating, ArrayLike],
+        *args: Union[floating, ArrayLike],
         size: Optional[int] = None,
         random_state: RandomLike = None,
         # return_thetas: bool = True

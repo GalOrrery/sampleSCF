@@ -7,12 +7,15 @@
 from typing import Union
 
 # THIRD PARTY
-import numpy as np
-from numpy.typing import ArrayLike, NDArray
+from numpy import floating
+from numpy.random import Generator, RandomState
+from numpy.typing import NDArray
 
-RandomGenerator = Union[np.random.RandomState, np.random.Generator]
+__all__ = ["RandomGenerator", "RandomLike", "NDArrayF", "FArrayLike"]
+
+RandomGenerator = Union[RandomState, Generator]
 RandomLike = Union[None, int, RandomGenerator]
-NDArrayF = NDArray[np.floating]
+NDArrayF = NDArray[floating]
 
 # float array-like
 FArrayLike = Union[float, NDArrayF]

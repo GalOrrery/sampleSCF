@@ -12,25 +12,15 @@ import re
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
 import pytest
-from astropy.coordinates import (
-    CartesianRepresentation,
-    Distance,
-    PhysicsSphericalRepresentation,
-    SphericalRepresentation,
-    UnitSphericalRepresentation,
-)
+from astropy.coordinates import CartesianRepresentation, Distance, PhysicsSphericalRepresentation
+from astropy.coordinates import SphericalRepresentation, UnitSphericalRepresentation
 from astropy.units import Quantity, UnitConversionError, allclose
+from numpy import eye, pi, sin, cos, ndarray, inf, array, atleast_1d
 
 # LOCAL
-from sample_scf.representation import (
-    FiniteSphericalRepresentation,
-    r_of_zeta,
-    theta_of_x,
-    x_of_theta,
-    zeta_of_r,
-)
+from sample_scf.representation import FiniteSphericalRepresentation, r_of_zeta, theta_of_x
+from sample_scf.representation import x_of_theta, zeta_of_r
 
 ##############################################################################
 # TESTS
@@ -46,7 +36,6 @@ class Test_FiniteSphericalRepresentation:
         self.phi = 0 * u.rad
         self.x = 0
         self.zeta = 0
-        self.scale_radius = 8 * u.kpc
 
     @pytest.fixture
     def rep_cls(self):
@@ -282,9 +271,9 @@ class Test_FiniteSphericalRepresentation:
         """Test :meth:`sample_scf.FiniteSphericalRepresentation.to_cartesian`."""
         r = rep.to_cartesian()
 
-        x = rep.r * np.sin(rep.theta) * np.cos(rep.phi)
-        y = rep.r * np.sin(rep.theta) * np.sin(rep.phi)
-        z = rep.r * np.cos(rep.theta)
+        x = rep.r * sin(rep.theta) * cos(rep.phi)
+        y = rep.r * sin(rep.theta) * sin(rep.phi)
+        z = rep.r * cos(rep.theta)
 
         assert allclose(r.x, x)
         assert allclose(r.y, y)
@@ -319,22 +308,22 @@ class Test_FiniteSphericalRepresentation:
     def test_transform(self, rep, scale_radius):
         """Test :meth:`sample_scf.FiniteSphericalRepresentation.transform`."""
         # Identity
-        matrix = np.eye(3)
+        matrix = eye(3)
         r = rep.transform(matrix, scale_radius)
         assert allclose(rep.phi, r.phi)
         assert allclose(rep.theta, r.theta)
         assert allclose(rep.zeta, r.zeta)
 
         # alternating coordinates
-        matrix = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+        matrix = array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
         r = rep.transform(matrix, scale_radius)
-        assert allclose(rep.phi, r.phi - np.pi / 2 * u.rad)
+        assert allclose(rep.phi, r.phi - pi / 2 * u.rad)
         assert allclose(rep.theta, r.theta)
         assert allclose(rep.zeta, r.zeta)
 
     def test_norm(self, rep):
         """Test :meth:`sample_scf.FiniteSphericalRepresentation.norm`."""
-        assert rep.norm() == np.abs(rep.zeta)
+        assert rep.norm() == abs(rep.zeta)
 
 
 ##############################################################################
@@ -360,10 +349,10 @@ def test_zeta_of_r_fail():
     [
         (0, None, -1.0, False),
         (1, None, 0.0, False),
-        (np.inf, None, 1.0, RuntimeWarning),  # edge case
+        (inf, None, 1.0, RuntimeWarning),  # edge case
         (10, None, 9 / 11, False),
-        ([0, 1, np.inf], None, [-1.0, 0.0, 1.0], False),
-        ([0, 1, np.inf], None, [-1.0, 0.0, 1.0], False),
+        ([0, 1, inf], None, [-1.0, 0.0, 1.0], False),
+        ([0, 1, inf], None, [-1.0, 0.0, 1.0], False),
     ],
 )
 def test_zeta_of_r_ArrayLike(r, scale_radius, expected, warns):
@@ -403,10 +392,10 @@ def test_zeta_of_r_Quantity_fail():
     [
         (0 * u.kpc, None, -1.0, False),
         (1 * u.kpc, None, 0.0, False),
-        (np.inf * u.kpc, None, 1.0, RuntimeWarning),  # edge case
+        (inf * u.kpc, None, 1.0, RuntimeWarning),  # edge case
         (10 * u.km, None, 9 / 11, False),
-        ([0, 1, np.inf] * u.kpc, None, [-1.0, 0.0, 1.0], False),
-        ([0, 1, np.inf] * u.km, None, [-1.0, 0.0, 1.0], False),
+        ([0, 1, inf] * u.kpc, None, [-1.0, 0.0, 1.0], False),
+        ([0, 1, inf] * u.km, None, [-1.0, 0.0, 1.0], False),
     ],
 )
 def test_zeta_of_r_Quantity(r, scale_radius, expected, warns):
@@ -419,7 +408,7 @@ def test_zeta_of_r_Quantity(r, scale_radius, expected, warns):
         assert zeta.unit.physical_type == "dimensionless"
 
 
-@pytest.mark.parametrize("r", [0 * u.kpc, 1 * u.kpc, np.inf * u.kpc, [0, 1, np.inf] * u.kpc])
+@pytest.mark.parametrize("r", [0 * u.kpc, 1 * u.kpc, inf * u.kpc, [0, 1, inf] * u.kpc])
 def test_zeta_of_r_roundtrip(r):
     """Test zeta and r round trip. Note that Quantities don't round trip."""
     assert allclose(r_of_zeta(zeta_of_r(r, None), 1), r.value)
@@ -434,8 +423,8 @@ def test_zeta_of_r_roundtrip(r):
     [
         (-1.0, 0, False),
         (0.0, 1, False),
-        (1.0, np.inf, RuntimeWarning),  # edge case
-        (np.array([-1.0, 0.0, 1.0]), [0, 1, np.inf], False),
+        (1.0, inf, RuntimeWarning),  # edge case
+        (array([-1.0, 0.0, 1.0]), [0, 1, inf], False),
     ],
 )
 def test_r_of_zeta(zeta, expected, warns):
@@ -444,7 +433,7 @@ def test_r_of_zeta(zeta, expected, warns):
         r = r_of_zeta(zeta, 1)
 
         assert allclose(r, expected)  # TODO! scale_radius
-        assert isinstance(r, np.ndarray)
+        assert isinstance(r, ndarray)
 
 
 def test_r_of_zeta_fail():
@@ -483,14 +472,14 @@ def test_r_of_zeta_roundtrip(zeta):
     "theta, expected",
     [
         (0, 1),
-        (np.pi / 2, 0),
-        (np.pi, -1),
-        ([0, np.pi / 2, np.pi], [1, 0, -1]),  # array
+        (pi / 2, 0),
+        (pi, -1),
+        ([0, pi / 2, pi], [1, 0, -1]),  # array
         # with units
         (0 << u.rad, 1),
-        (np.pi / 2 << u.rad, 0),
-        (np.pi << u.rad, -1),
-        ([np.pi, np.pi / 2, 0] << u.rad, [-1, 0, 1]),  # array
+        (pi / 2 << u.rad, 0),
+        (pi << u.rad, -1),
+        ([pi, pi / 2, 0] << u.rad, [-1, 0, 1]),  # array
     ],
 )
 def test_x_of_theta(theta, expected):
@@ -498,7 +487,7 @@ def test_x_of_theta(theta, expected):
     assert allclose(x_of_theta(theta), expected, atol=1e-16)
 
 
-@pytest.mark.parametrize("theta", [0, np.pi / 2, np.pi, [0, np.pi / 2, np.pi]])  # TODO! units
+@pytest.mark.parametrize("theta", [0, pi / 2, pi, [0, pi / 2, pi]])  # TODO! units
 def test_theta_of_x_roundtrip(theta):
     """Test theta and x round trip. Note that Quantities don't round trip."""
     assert allclose(theta_of_x(x_of_theta(theta)), theta << u.rad)
@@ -510,10 +499,10 @@ def test_theta_of_x_roundtrip(theta):
 @pytest.mark.parametrize(
     "x, expected",
     [
-        (-1, np.pi),
-        (0, np.pi / 2),
+        (-1, pi),
+        (0, pi / 2),
         (1, 0),
-        ([-1, 0, 1], [np.pi, np.pi / 2, 0]),  # array
+        ([-1, 0, 1], [pi, pi / 2, 0]),  # array
     ],
 )
 def test_theta_of_x(x, expected):

@@ -8,20 +8,20 @@
 from __future__ import annotations
 
 # STDLIB
-from typing import Any
+from typing import Any, Tuple
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
-from numpy import argsort
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
+from numpy import argsort, array, diff, inf, isnan, nanmax, nanmin, where
 from numpy.typing import ArrayLike
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 
 # LOCAL
 from sample_scf._typing import NDArrayF
 from sample_scf.base_univariate import r_distribution_base
-from sample_scf.representation import FiniteSphericalRepresentation, r_of_zeta, zeta_of_r
+from sample_scf.representation import r_of_zeta, zeta_of_r
 
 __all__ = ["interpolated_r_distribution"]
 
@@ -49,7 +49,7 @@ class interpolated_r_distribution(r_distribution_base):
     _interp_in_zeta: bool
 
     def __init__(self, potential: SCFPotential, radii: Quantity, **kw: Any) -> None:
-        kw["a"], kw["b"] = 0, np.nanmax(radii)  # allowed range of r
+        kw["a"], kw["b"] = 0, nanmax(radii)  # allowed range of r
         super().__init__(potential, **kw)
 
         # fraction of total mass grid
@@ -80,15 +80,15 @@ class interpolated_r_distribution(r_distribution_base):
         (R,) ndarray[float]
         """
         rgalpy = radii.to_value(u.kpc) / self.potential._ro
-        mgrid = np.array([self.potential._mass(x) for x in rgalpy])  # :(
+        mgrid = array([self.potential._mass(x) for x in rgalpy])  # :(
         # manual fixes for endpoints and normalization
-        ind = np.where(np.isnan(mgrid))[0]
+        ind = where(isnan(mgrid))[0]
         mgrid[ind[radii[ind] == 0]] = 0
-        mgrid = (mgrid - np.nanmin(mgrid)) / (np.nanmax(mgrid) - np.nanmin(mgrid))  # rescale
-        infind = ind[radii[ind] == np.inf].squeeze()
+        mgrid = (mgrid - nanmin(mgrid)) / (nanmax(mgrid) - nanmin(mgrid))  # rescale
+        infind = ind[radii[ind] == inf].squeeze()
         mgrid[infind] = 1
         if mgrid[infind - 1] == 1:  # munge the rescaling  TODO! do better
-            mgrid[infind - 1] -= min(1e-8, np.diff(mgrid[slice(infind - 2, infind)]) / 2)
+            mgrid[infind - 1] -= min(1e-8, diff(mgrid[slice(infind - 2, infind)]) / 2)
 
         return mgrid
 

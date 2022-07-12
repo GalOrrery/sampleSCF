@@ -12,25 +12,23 @@ Description.
 from __future__ import annotations
 
 # STDLIB
-import itertools
-import warnings
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, Tuple, Union
 
 # THIRD PARTY
 import astropy.units as u
-from numpy import argsort, linspace, pi, array
-from numpy.random import RandomState, Generator
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
+from numpy import argsort, array, linspace, pi
+from numpy.random import Generator, RandomState
 from numpy.typing import ArrayLike
 from scipy.interpolate import RectBivariateSpline, splev, splrep
 
 # LOCAL
+from .radial import interpolated_r_distribution
 from sample_scf._typing import NDArrayF, RandomLike
 from sample_scf.base_univariate import theta_distribution_base
 from sample_scf.exact.inclination import exact_theta_distribution_base
 from sample_scf.representation import x_of_theta, zeta_of_r
-
-from .radial import interpolated_r_distribution
 
 __all__ = ["interpolated_theta_distribution"]
 

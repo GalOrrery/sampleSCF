@@ -5,22 +5,15 @@
 # IMPORTS
 
 # STDLIB
-import inspect
 import time
 from abc import ABCMeta, abstractmethod
 
 # THIRD PARTY
-import astropy.coordinates as coord
-import astropy.units as u
-import numpy as np
 import pytest
-from astropy.utils.misc import NumpyRNGContext
 from galpy.potential import KeplerPotential
-from numpy.testing import assert_allclose
-from scipy.stats import rv_continuous
+from numpy import linspace
 
 # LOCAL
-from sample_scf.base_univariate import rv_potential
 from sample_scf.conftest import _hernquist_scf_potential
 
 ##############################################################################
@@ -41,7 +34,10 @@ class BaseTest_Sampler(metaclass=ABCMeta):
             potential = _hernquist_scf_potential
         elif request.param == "nfw_scf_potential":
             # potential = nfw_scf_potential.__wrapped__()
-            pass
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+
         yield potential
 
     @pytest.fixture(scope="class")
@@ -95,7 +91,7 @@ class BaseTest_Sampler(metaclass=ABCMeta):
     # time-scale tests
 
     def cdf_time_arr(self, size):
-        return np.linspace(0, 1e4, size)
+        return linspace(0, 1e4, size)
 
     @pytest.fixture(scope="class")
     def cdf_time_scale(self):

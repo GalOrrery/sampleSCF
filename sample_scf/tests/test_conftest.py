@@ -32,9 +32,9 @@
 #     @abc.abstractmethod
 #     def setup_class(self):
 #         """Setup fixtures for testing."""
-#         self.R = np.linspace(0.0, 3.0, num=1001)
+#         self.R = linspace(0.0, 3.0, num=1001)
 #         self.atol = 1e-6
-#         self.restrict_ind = np.ones(1001, dtype=bool)
+#         self.restrict_ind = ones(1001, dtype=bool)
 #
 #     @pytest.fixture(scope="class")
 #     @abc.abstractmethod
@@ -45,11 +45,11 @@
 #     def compare_to_theory(self, theory, scf, atol=1e-6):
 #         # test that where theory is finite they match and where it's infinite,
 #         # the scf is NaN
-#         fnt = ~np.isinf(theory)
+#         fnt = ~isinf(theory)
 #         ind = self.restrict_ind & fnt
 #
-#         assert np.allclose(theory[ind], scf[ind], atol=atol)
-#         assert np.all(np.isnan(scf[~fnt]))
+#         assert allclose(theory[ind], scf[ind], atol=atol)
+#         assert all(isnan(scf[~fnt]))
 #
 #     # ===============================================================
 #     # sanity checks

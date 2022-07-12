@@ -7,27 +7,22 @@
 # IMPORTS
 
 # STDLIB
-import inspect
-import time
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 # THIRD PARTY
 import astropy.units as u
-import numpy as np
 import pytest
 from astropy.coordinates import BaseRepresentation, PhysicsSphericalRepresentation
+from astropy.utils.misc import NumpyRNGContext
 from galpy.potential import SCFPotential
+from numpy import ndarray, shape, squeeze, atleast_1d, allclose
 from numpy.testing import assert_allclose
 
 # LOCAL
 from .base import BaseTest_Sampler
-from .test_base_univariate import phis, radii, rvtestsampler, thetas
-from sample_scf import conftest
-from sample_scf.base_univariate import (
-    phi_distribution_base,
-    r_distribution_base,
-    theta_distribution_base,
-)
+from .test_base_univariate import rvtestsampler
+from sample_scf.base_univariate import phi_distribution_base, r_distribution_base
+from sample_scf.base_univariate import theta_distribution_base
 
 ##############################################################################
 # TESTS
@@ -123,7 +118,7 @@ class BaseTest_SCFSamplerBase(BaseTest_Sampler):
         """Test cdf method."""
         cdf = sampler.cdf(size=size, *position)
 
-        assert isinstance(cdf, np.ndarray)
+        assert isinstance(cdf, ndarray)
         assert False
 
         assert_allclose(cdf, expected, atol=1e-16)
@@ -167,9 +162,9 @@ class Test_SCFSamplerBase(BaseTest_SCFSamplerBase):
         """Set up r, theta, phi sampler."""
         super().sampler(potential)
 
-        sampler._r_distribution = rvtestsampler(potentials)
-        sampler._theta_distribution = rvtestsampler(potentials)
-        sampler._phi_distribution = rvtestsampler(potentials)
+        sampler._r_distribution = rvtestsampler(potential)
+        sampler._theta_distribution = rvtestsampler(potential)
+        sampler._phi_distribution = rvtestsampler(potential)
 
         return sampler
 
@@ -187,10 +182,10 @@ class Test_SCFSamplerBase(BaseTest_SCFSamplerBase):
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
         cdf = sampler.cdf(r, theta, phi)
-        assert np.allclose(cdf, expected, atol=1e-16)
+        assert allclose(cdf, expected, atol=1e-16)
 
         # also test shape
-        assert tuple(np.atleast_1d(np.squeeze((*np.shape(r), 3)))) == cdf.shape
+        assert tuple(atleast_1d(squeeze((*shape(r), 3)))) == cdf.shape
 
     @pytest.mark.parametrize(
         "id, size, random, vectorized",

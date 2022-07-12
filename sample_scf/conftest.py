@@ -11,21 +11,13 @@ packagename.test
 """
 
 # STDLIB
-import copy
 import os
 
 # THIRD PARTY
-import numpy as np
 import pytest
-from astropy.utils.data import get_pkg_data_filename, get_pkg_data_path
-from galpy.df import isotropicHernquistdf, isotropicNFWdf, osipkovmerrittNFWdf
-from galpy.potential import (
-    HernquistPotential,
-    NFWPotential,
-    SCFPotential,
-    TriaxialNFWPotential,
-    scf_compute_coeffs_axi,
-)
+from galpy.df import isotropicHernquistdf
+from galpy.potential import HernquistPotential, SCFPotential
+from numpy import zeros
 
 try:
     # THIRD PARTY
@@ -71,7 +63,7 @@ hernquist_potential = HernquistPotential()
 hernquist_potential.turn_physical_on()
 hernquist_df = isotropicHernquistdf(hernquist_potential)
 
-Acos = np.zeros((5, 6, 6))
+Acos = zeros((5, 6, 6))
 Acos[0, 0, 0] = 1
 _hernquist_scf_potential = SCFPotential(Acos=Acos)
 _hernquist_scf_potential.turn_physical_on()
@@ -84,13 +76,13 @@ _hernquist_scf_potential.turn_physical_on()
 # # FIXME! load this up as a test data file
 # fpath = get_pkg_data_path("tests/data/nfw.npz", package="sample_scf")
 # try:
-#     data = np.load(fpath)
+#     data = load(fpath)
 # except FileNotFoundError:
 #     a_scf = 80
 #     Acos, Asin = scf_compute_coeffs_axi(nfw_potential.dens, N=40, L=30, a=a_scf)
-#     np.savez(fpath, Acos=Acos, Asin=Asin, a_scf=a_scf)
+#     savez(fpath, Acos=Acos, Asin=Asin, a_scf=a_scf)
 # else:
-#     data = np.load(fpath, allow_pickle=True)
+#     data = load(fpath, allow_pickle=True)
 #     Acos = copy.deepcopy(data["Acos"])
 #     Asin = None
 #     a_scf = data["a_scf"]
@@ -140,7 +132,9 @@ def hernquist_scf_potential():
 def potentials(request):
     if request.param in ("hernquist_scf_potential"):
         potential = hernquist_scf_potential.__wrapped__()
-    elif request.param == "nfw_scf_potential":
-        potential = nfw_scf_potential.__wrapped__()
+    # elif request.param == "nfw_scf_potential":
+    #     potential = nfw_scf_potential.__wrapped__()
+    else:
+        raise ValueError
 
     yield potential

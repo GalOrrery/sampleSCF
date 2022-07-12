@@ -9,26 +9,27 @@
 # THIRD PARTY
 import astropy.units as u
 import matplotlib.pyplot as plt
-import numpy as np
 import pytest
 from astropy.utils.misc import NumpyRNGContext
+from numpy import allclose, concatenate, geomspace, inf, isclose, linspace, ndarray, pi, random
 from numpy.testing import assert_allclose
 
 # LOCAL
 from .common import phi_distributionTestBase, r_distributionTestBase, theta_distributionTestBase
 from .test_base import BaseTest_rv_potential, SCFSamplerTestBase
+from sample_scf.base_univariate import _calculate_Qls, _calculate_Scs
 from sample_scf.interpolated import InterpolatedSCFSampler
-from sample_scf.interpolated.azimuth import phi_distribution
-from sample_scf.interpolated.inclination import theta_distribution
-from sample_scf.interpolated.radial import r_distribution
-from sample_scf.representation import x_of_theta
+from sample_scf.interpolated.azimuth import interpolated_phi_distribution
+from sample_scf.interpolated.inclination import interpolated_theta_distribution
+from sample_scf.interpolated.radial import interpolated_r_distribution
+from sample_scf.representation import r_of_zeta, x_of_theta, zeta_of_r
 
 ##############################################################################
 # PARAMETERS
 
-rgrid = np.concatenate(([0], np.geomspace(1e-1, 1e3, 100), [np.inf]))
-tgrid = np.linspace(-np.pi / 2, np.pi / 2, 30)
-pgrid = np.linspace(0, 2 * np.pi, 30)
+rgrid = concatenate(([0], geomspace(1e-1, 1e3, 100), [inf]))
+tgrid = linspace(-pi / 2, pi / 2, 30)
+pgrid = linspace(0, 2 * pi, 30)
 
 
 ##############################################################################
@@ -72,7 +73,7 @@ class Test_SCFSampler(SCFSamplerTestBase):
     )
     def test_cdf(self, sampler, r, theta, phi, expected):
         """Test :meth:`sample_scf.base_multivariate.SCFSamplerBase.cdf`."""
-        assert np.allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
+        assert allclose(sampler.cdf(r, theta, phi), expected, atol=1e-16)
 
     # ===============================================================
     # Plot Tests
@@ -104,7 +105,7 @@ class InterpBaseTest_rv_potential(BaseTest_rv_potential):
         # ie that the splines are stable
         cdfk = sampler._spl_cdf.get_knots()
         ncdfk = newsampler._spl_cdf.get_knots()
-        if isinstance(cdfk, np.ndarray):  # 1D splines
+        if isinstance(cdfk, ndarray):  # 1D splines
             assert_allclose(ncdfk, cdfk, atol=1e-16)
         else:  # 2D and 3D splines
             for k, nk in zip(cdfk, ncdfk):
@@ -112,7 +113,7 @@ class InterpBaseTest_rv_potential(BaseTest_rv_potential):
 
         ppfk = sampler._spl_ppf.get_knots()
         nppfk = newsampler._spl_ppf.get_knots()
-        if isinstance(ppfk, np.ndarray):  # 1D splines
+        if isinstance(ppfk, ndarray):  # 1D splines
             assert_allclose(nppfk, ppfk, atol=1e-16)
         else:  # 2D and 3D splines
             for k, nk in zip(ppfk, nppfk):
@@ -127,12 +128,12 @@ class InterpBaseTest_rv_potential(BaseTest_rv_potential):
 
 
 class Test_r_distribution(r_distributionTestBase, InterpBaseTest_rv_potential):
-    """Test :class:`sample_scf.sample_interp.r_distribution`"""
+    """Test :class:`sample_scf.sample_interp.interpolated_r_distribution`"""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = r_distribution
+        self.cls = interpolated_r_distribution
         self.cls_args = (rgrid,)
         self.cls_kwargs = {}
         self.cls_pot_kw = {}
@@ -150,18 +151,18 @@ class Test_r_distribution(r_distributionTestBase, InterpBaseTest_rv_potential):
         # TODO! test mgrid endpoints, cdf, and ppf
 
     # TODO! use hypothesis
-    @pytest.mark.parametrize("r", np.random.default_rng(0).uniform(0, 1e4, 10))
+    @pytest.mark.parametrize("r", random.default_rng(0).uniform(0, 1e4, 10))
     def test__cdf(self, sampler, r):
-        """Test :meth:`sample_scf.interpolated.r_distribution._cdf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_r_distribution._cdf`."""
         super().test__cdf(sampler, r)
 
         # expected
         assert_allclose(sampler._cdf(r), sampler._spl_cdf(zeta_of_r(r)))
 
     # TODO! use hypothesis
-    @pytest.mark.parametrize("q", np.random.default_rng(0).uniform(0, 1, 10))
+    @pytest.mark.parametrize("q", random.default_rng(0).uniform(0, 1, 10))
     def test__ppf(self, sampler, q):
-        """Test :meth:`sample_scf.interpolated.r_distribution._ppf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_r_distribution._ppf`."""
         # expected
         assert_allclose(sampler._ppf(q), r_of_zeta(sampler._spl_ppf(q)))
 
@@ -178,7 +179,7 @@ class Test_r_distribution(r_distributionTestBase, InterpBaseTest_rv_potential):
         ],
     )
     def test_rvs(self, sampler, size, random, expected):
-        """Test :meth:`sample_scf.interpolated.r_distribution.rvs`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_r_distribution.rvs`."""
         super().test_rvs(sampler, size, random, expected)
 
     # ===============================================================
@@ -265,12 +266,12 @@ class Test_r_distribution(r_distributionTestBase, InterpBaseTest_rv_potential):
 
 
 class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_potential):
-    """Test :class:`sample_scf.interpolated.theta_distribution`."""
+    """Test :class:`sample_scf.interpolated.interpolated_theta_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = theta_distribution
+        self.cls = interpolated_theta_distribution
         self.cls_args = (rgrid, tgrid)
 
         self.cdf_time_scale = 3e-4
@@ -284,7 +285,7 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
         super().test_init(sampler)
 
         # a shape mismatch
-        Qls = thetaQls(sampler._potential, rgrid[1:-1])
+        Qls = _calculate_Qls(sampler._potential, rgrid[1:-1])
         with pytest.raises(ValueError, match="Qls must be shape"):
             sampler.__class__(sampler._potential, rgrid, tgrid, Qls=Qls)
 
@@ -293,31 +294,31 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
         "x, zeta",
         [
             *zip(
-                np.random.default_rng(0).uniform(-1, 1, 10),
-                np.random.default_rng(1).uniform(-1, 1, 10),
+                random.default_rng(0).uniform(-1, 1, 10),
+                random.default_rng(1).uniform(-1, 1, 10),
             ),
         ],
     )
     def test__cdf(self, sampler, x, zeta):
-        """Test :meth:`sample_scf.interpolated.theta_distribution._cdf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_theta_distribution._cdf`."""
         # expected
         assert_allclose(sampler._cdf(x, zeta=zeta), sampler._spl_cdf(zeta, x, grid=False))
 
         # args and kwargs don't matter
         assert_allclose(sampler._cdf(x, zeta=zeta), sampler._cdf(x, 10, zeta=zeta, test=14))
 
-    @pytest.mark.parametrize("zeta", np.random.default_rng(0).uniform(-1, 1, 10))
+    @pytest.mark.parametrize("zeta", random.default_rng(0).uniform(-1, 1, 10))
     def test__cdf_edge(self, sampler, zeta):
-        """Test :meth:`sample_scf.interpolated.r_distribution._cdf`."""
-        assert np.isclose(sampler._cdf(-1, zeta=zeta), 0.0, atol=1e-16)
-        assert np.isclose(sampler._cdf(1, zeta=zeta), 1.0, atol=1e-16)
+        """Test :meth:`sample_scf.interpolated.interpolated_theta_distribution._cdf`."""
+        assert isclose(sampler._cdf(-1, zeta=zeta), 0.0, atol=1e-16)
+        assert isclose(sampler._cdf(1, zeta=zeta), 1.0, atol=1e-16)
 
     @pytest.mark.parametrize(
         "theta, r",
         [
             *zip(
-                np.random.default_rng(0).uniform(-np.pi / 2, np.pi / 2, 10),
-                np.random.default_rng(1).uniform(0, 1e4, 10),
+                random.default_rng(0).uniform(-pi / 2, pi / 2, 10),
+                random.default_rng(1).uniform(0, 1e4, 10),
             ),
         ],
     )
@@ -326,7 +327,7 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
         assert_allclose(
             sampler.cdf(theta, r),
             sampler._spl_cdf(
-                FiniteSphericalRepresentation.calculate_zeta_of_r(r),
+                zeta_of_r(r),
                 x_of_theta(u.Quantity(theta, u.rad)),
                 grid=False,
             ),
@@ -365,12 +366,12 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
         )
         kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
         ax.plot(tgrid, sampler.cdf(tgrid, r=10), **kw)
-        ax.axvline(-np.pi / 2, c="tab:blue")
-        ax.axhline(sampler.cdf(-np.pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
+        ax.axvline(-pi / 2, c="tab:blue")
+        ax.axhline(sampler.cdf(-pi / 2, r=10), c="tab:blue", label=r"$\theta=-\frac{\pi}{2}$")
         ax.axvline(0, c="tab:green")
         ax.axhline(sampler.cdf(0, r=10), c="tab:green", label=r"$\theta=0$")
-        ax.axvline(np.pi / 2, c="tab:red")
-        ax.axhline(sampler.cdf(np.pi / 2, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
+        ax.axvline(pi / 2, c="tab:red")
+        ax.axhline(sampler.cdf(pi / 2, r=10), c="tab:red", label=r"$\theta=\frac{\pi}{2}$")
         ax.legend(loc="lower right")
 
         ax = fig.add_subplot(
@@ -402,7 +403,7 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
             sample = sample[sample < 1e4]
 
             theory = self.theory[sampler._potential].sample(n=int(1e6)).theta()
-            theory -= np.pi / 2 * u.rad  # adjust range back
+            theory -= pi / 2 * u.rad  # adjust range back
 
         fig = plt.figure(figsize=(10, 3))
         ax = fig.add_subplot(
@@ -434,12 +435,12 @@ class Test_theta_distribution(theta_distributionTestBase, InterpBaseTest_rv_pote
 
 
 class Test_phi_distribution(phi_distributionTestBase, InterpBaseTest_rv_potential):
-    """Test :class:`sample_scf.interpolated.phi_distribution`."""
+    """Test :class:`sample_scf.interpolated.interpolated_phi_distribution`."""
 
     def setup_class(self):
         super().setup_class(self)
 
-        self.cls = phi_distribution
+        self.cls = interpolated_phi_distribution
         self.cls_args = (rgrid, tgrid, pgrid)
 
         self.cdf_time_scale = 12e-4
@@ -449,37 +450,37 @@ class Test_phi_distribution(phi_distributionTestBase, InterpBaseTest_rv_potentia
     # Method Tests
 
     def test_init(self, sampler):
-        """Test :meth:`sample_scf.interpolated.phi_distribution._cdf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution._cdf`."""
         # super().test_init(sampler)  # doesn't work  TODO!
 
         # a shape mismatch
-        Scs = phiScs(sampler._potential, rgrid[1:-1], tgrid[1:-1], warn=False)
+        Scs = _calculate_Scs(sampler._potential, rgrid[1:-1], tgrid[1:-1], warn=False)
         with pytest.raises(ValueError, match="Rm, Sm must be shape"):
             sampler.__class__(sampler._potential, rgrid, tgrid, pgrid, Scs=Scs)
 
     @pytest.mark.skip("TODO!")
     def test__cdf(self):
-        """Test :meth:`sample_scf.interpolated.phi_distribution._cdf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution._cdf`."""
         assert False
 
     @pytest.mark.skip("TODO!")
     def test_cdf(self):
-        """Test :meth:`sample_scf.interpolated.phi_distribution.cdf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution.cdf`."""
         assert False
 
     @pytest.mark.skip("TODO!")
     def test__ppf(self):
-        """Test :meth:`sample_scf.interpolated.phi_distribution._ppf`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution._ppf`."""
         assert False
 
     @pytest.mark.skip("TODO!")
     def test__rvs(self):
-        """Test :meth:`sample_scf.interpolated.phi_distribution._rvs`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution._rvs`."""
         assert False
 
     @pytest.mark.skip("TODO!")
     def test_rvs(self):
-        """Test :meth:`sample_scf.interpolated.phi_distribution.rvs`."""
+        """Test :meth:`sample_scf.interpolated.interpolated_phi_distribution.rvs`."""
         assert False
 
     # ===============================================================
@@ -499,13 +500,13 @@ class Test_phi_distribution(phi_distributionTestBase, InterpBaseTest_rv_potentia
             ylabel=r"CDF($\phi$)",
         )
         kw = dict(marker="o", ms=5, c="k", zorder=5, label="CDF")
-        ax.plot(pgrid, sampler.cdf(pgrid, r=10, theta=np.pi / 6), **kw)
+        ax.plot(pgrid, sampler.cdf(pgrid, r=10, theta=pi / 6), **kw)
         ax.axvline(0, c="tab:blue")
-        ax.axhline(sampler.cdf(0, r=10, theta=np.pi / 6), c="tab:blue", label=r"$\phi=0$")
-        ax.axvline(np.pi, c="tab:green")
-        ax.axhline(sampler.cdf(np.pi, r=10, theta=np.pi / 6), c="tab:green", label=r"$\phi=\pi$")
-        ax.axvline(2 * np.pi, c="tab:red")
-        ax.axhline(sampler.cdf(2 * np.pi, r=10, theta=np.pi / 6), c="tab:red", label=r"$\phi=2\pi$")
+        ax.axhline(sampler.cdf(0, r=10, theta=pi / 6), c="tab:blue", label=r"$\phi=0$")
+        ax.axvline(pi, c="tab:green")
+        ax.axhline(sampler.cdf(pi, r=10, theta=pi / 6), c="tab:green", label=r"$\phi=\pi$")
+        ax.axvline(2 * pi, c="tab:red")
+        ax.axhline(sampler.cdf(2 * pi, r=10, theta=pi / 6), c="tab:red", label=r"$\phi=2\pi$")
         ax.legend(loc="lower right")
 
         fig.tight_layout()
@@ -518,7 +519,7 @@ class Test_phi_distribution(phi_distributionTestBase, InterpBaseTest_rv_potentia
     def test_interp_phi_sampling_plot(self, sampler):
         """Test sampling."""
         with NumpyRNGContext(0):  # control the random numbers
-            sample = sampler.rvs(size=int(1e6), r=10, theta=np.pi / 6)
+            sample = sampler.rvs(size=int(1e6), r=10, theta=pi / 6)
             sample = sample[sample < 1e4]
 
             theory = self.theory[sampler._potential].sample(n=int(1e6)).phi()

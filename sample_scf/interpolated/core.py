@@ -12,14 +12,11 @@ Description.
 from __future__ import annotations
 
 # STDLIB
-import warnings
 from typing import Any
 
 # THIRD PARTY
-import astropy.units as u
-import numpy as np
+from astropy.units import Quantity
 from galpy.potential import SCFPotential
-from numpy import array, inf, isinf, nan_to_num, sum
 
 # LOCAL
 from .azimuth import interpolated_phi_distribution
@@ -27,7 +24,6 @@ from .inclination import interpolated_theta_distribution
 from .radial import interpolated_r_distribution
 from sample_scf._typing import NDArrayF
 from sample_scf.base_multivariate import SCFSamplerBase
-from sample_scf.representation import x_of_theta
 
 __all__ = ["InterpolatedSCFSampler"]
 
@@ -105,25 +101,23 @@ class InterpolatedSCFSampler(SCFSamplerBase):
 
         # sampler
         self._r_distribution = interpolated_r_distribution(potential, radii, **kw)
-        radii = self._radii  # sorted
 
         # compute the r-dependent coefficient matrix.
-        rhoT = self.calculate_rhoTilde(radii)
+        rhoT = self.calculate_rhoTilde(self._radii)
 
         # -------------------
         # Thetas
 
         # sampler
         self._theta_distribution = interpolated_theta_distribution(
-            potential, radii, thetas, rhoTilde=rhoT, **kw
+            potential, self._radii, thetas, rhoTilde=rhoT, **kw
         )
-        thetas, xs = self._thetas, self._xs  # sorted
 
         # -------------------
         # Phis
 
         self._phi_distribution = interpolated_phi_distribution(
-            potential, radii, thetas, phis, rhoTilde=rhoT, **kw
+            potential, self._radii, self._thetas, phis, rhoTilde=rhoT, **kw
         )
 
     @property
