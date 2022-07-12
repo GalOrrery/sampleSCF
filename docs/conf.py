@@ -25,7 +25,7 @@
 # Thus, any C-extensions that are needed to build the documentation will *not*
 # be accessible, and the documentation will not build correctly.
 
-# BUILT-IN
+# STDLIB
 import datetime
 import os
 import sys
@@ -146,7 +146,9 @@ modindex_common_prefix = ["sample_scf."]
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
-latex_documents = [("index", project + ".tex", project + u" Documentation", author, "manual")]
+latex_documents = [
+    ("index", project + ".tex", project + u" Documentation", author, "manual"),
+]
 
 
 # -- Options for manual page output -------------------------------------------

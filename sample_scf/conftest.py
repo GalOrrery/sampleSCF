@@ -10,11 +10,14 @@ packagename.test
 
 """
 
-# BUILT-IN
+# STDLIB
 import os
 
 # THIRD PARTY
-from astropy.version import version as astropy_version  # noqa: F401
+import pytest
+from galpy.df import isotropicHernquistdf
+from galpy.potential import HernquistPotential, SCFPotential
+from numpy import zeros
 
 try:
     # THIRD PARTY
@@ -23,6 +26,9 @@ try:
     ASTROPY_HEADER = True
 except ImportError:
     ASTROPY_HEADER = False
+
+# ============================================================================
+# Configuration
 
 
 def pytest_configure(config):
@@ -49,15 +55,86 @@ def pytest_configure(config):
         TESTED_VERSIONS[packagename] = __version__
 
 
-# Uncomment the last two lines in this block to treat all DeprecationWarnings as
-# exceptions. For Astropy v2.0 or later, there are 2 additional keywords,
-# as follow (although default should work for most cases).
-# To ignore some packages that produce deprecation warnings on import
-# (in addition to 'compiler', 'scipy', 'pygments', 'ipykernel', and
-# 'setuptools'), add:
-#     modules_to_ignore_on_import=['module_1', 'module_2']
-# To ignore some specific deprecation warning messages for Python version
-# MAJOR.MINOR or later, add:
-#     warnings_to_ignore_by_pyver={(MAJOR, MINOR): ['Message to ignore']}
-# from astropy.tests.helper import enable_deprecations_as_exceptions  # noqa: F401
-# enable_deprecations_as_exceptions()
+# ============================================================================
+# Fixtures
+
+# Hernquist
+hernquist_potential = HernquistPotential()
+hernquist_potential.turn_physical_on()
+hernquist_df = isotropicHernquistdf(hernquist_potential)
+
+Acos = zeros((5, 6, 6))
+Acos[0, 0, 0] = 1
+_hernquist_scf_potential = SCFPotential(Acos=Acos)
+_hernquist_scf_potential.turn_physical_on()
+
+
+# # NFW
+# nfw_potential = NFWPotential(normalize=1)
+# nfw_potential.turn_physical_on()
+# nfw_df = isotropicNFWdf(nfw_potential, rmax=1e4)
+# # FIXME! load this up as a test data file
+# fpath = get_pkg_data_path("tests/data/nfw.npz", package="sample_scf")
+# try:
+#     data = load(fpath)
+# except FileNotFoundError:
+#     a_scf = 80
+#     Acos, Asin = scf_compute_coeffs_axi(nfw_potential.dens, N=40, L=30, a=a_scf)
+#     savez(fpath, Acos=Acos, Asin=Asin, a_scf=a_scf)
+# else:
+#     data = load(fpath, allow_pickle=True)
+#     Acos = copy.deepcopy(data["Acos"])
+#     Asin = None
+#     a_scf = data["a_scf"]
+#
+# _nfw_scf_potential = SCFPotential(Acos=Acos, Asin=None, a=a_scf, normalize=1.0)
+# _nfw_scf_potential.turn_physical_on()
+
+
+# Triaxial NFW
+# tnfw_potential = TriaxialNFWPotential(normalize=1.0, c=1.4, a=1.0)
+# tnfw_potential.turn_physical_on()
+# tnfw_df = osipkovmerrittNFWdf(tnfw_potential, rmax=1e4)
+
+
+# ------------------------
+cls_pot_kw = {
+    _hernquist_scf_potential: {"total_mass": 1.0},
+    # _nfw_scf_potential: {"total_mass": 1.0},
+}
+theory = {
+    _hernquist_scf_potential: hernquist_df,
+    # _nfw_scf_potential: nfw_df,
+}
+
+
+@pytest.fixture(scope="session")
+def hernquist_scf_potential():
+    """Make a SCF of a Hernquist potential.
+
+    This is tested for quality in ``test_conftest.py``
+    """
+    return _hernquist_scf_potential
+
+
+# @pytest.fixture(scope="session")
+# def nfw_scf_potential():
+#     """Make a SCF of a triaxial NFW potential."""
+#     return _nfw_scf_potential
+
+
+@pytest.fixture(
+    params=[
+        "hernquist_scf_potential",
+        # "nfw_scf_potential",  # TODO! turn on
+    ],
+)
+def potentials(request):
+    if request.param in ("hernquist_scf_potential"):
+        potential = hernquist_scf_potential.__wrapped__()
+    # elif request.param == "nfw_scf_potential":
+    #     potential = nfw_scf_potential.__wrapped__()
+    else:
+        raise ValueError
+
+    yield potential
