@@ -1,3 +1,6 @@
+ci:
+    autoupdate_schedule: monthly
+
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -58,7 +61,7 @@ repos:
       additional_dependencies: ["toml"]
 
 -   repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
     - id: black
       additional_dependencies: ["toml"]
