@@ -43,7 +43,7 @@ repos:
     -   id: add-trailing-comma
 
 -   repo: https://github.com/hhatto/autopep8
-    rev: v2.0.4
+    rev: v2.1.0
     hooks:
     - id: autopep8
       args:
@@ -61,13 +61,13 @@ repos:
       additional_dependencies: ["toml"]
 
 -   repo: https://github.com/psf/black
-    rev: 24.1.1
+    rev: 24.3.0
     hooks:
     - id: black
       additional_dependencies: ["toml"]
 
 - repo: https://github.com/nbQA-dev/nbQA
-  rev: 1.7.1
+  rev: 1.8.5
   hooks:
     - id: nbqa-black
       additional_dependencies: [black==20.8b1]
