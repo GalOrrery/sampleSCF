@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-# BUILT-IN
+# STDLIB
 import os
 
 __all__ = ["__version__", "test"]

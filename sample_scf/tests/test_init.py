@@ -2,16 +2,17 @@
 
 """Some basic tests."""
 
-__all__ = [
-    "test_expected_imports",
-]
-
-
 ##############################################################################
 # IMPORTS
 
-# BUILT-IN
+# STDLIB
 import inspect
+
+# LOCAL
+import sample_scf
+from sample_scf.core import SCFSampler
+from sample_scf.exact import ExactSCFSampler
+from sample_scf.interpolated import InterpolatedSCFSampler
 
 ##############################################################################
 # TESTS
@@ -20,17 +21,8 @@ import inspect
 
 def test_expected_imports():
     """Test can import expected modules and objects."""
-    # LOCAL
-    import sample_scf
-
     assert inspect.ismodule(sample_scf)
 
-
-# /def
-
-
-# -------------------------------------------------------------------
-
-
-##############################################################################
-# END
+    assert sample_scf.SCFSampler is SCFSampler
+    assert sample_scf.ExactSCFSampler is ExactSCFSampler
+    assert sample_scf.InterpolatedSCFSampler is InterpolatedSCFSampler
