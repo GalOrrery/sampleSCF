@@ -1,0 +1,279 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% Semi-Analytic Sampling from an SCF Potential
+% For the DiscO project
+% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% SETUP
+
+\documentclass[12pt, english]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                 PACKAGES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Importing Packages
+
+% Page Layout
+\usepackage{fancyhdr}
+\usepackage{geometry}
+
+% Figures
+\usepackage{graphicx}
+
+% Citations
+\usepackage{natbib}
+
+% Math
+\usepackage{amsmath,amstext,amssymb}
+\usepackage{dsfont}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                 SETTINGS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Implementing Package Settings
+
+\graphicspath{{images/}{../images/}}
+
+\geometry{total={210mm,297mm},
+          left=25mm,right=25mm,
+          top=20mm,bottom=20mm,
+          bindingoffset=0mm}
+
+\raggedbottom
+\raggedright
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                  DOCUMENT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+
+% -----------------------------------------------------------------------------
+%                                  TITLE PAGE
+% -----------------------------------------------------------------------------
+
+\pagestyle{fancy}
+\lhead{Semi-Analytic Sampling from an SCF Density}
+\rhead{DiscO $|$ \thepage}
+\cfoot{Contributions to Date: Nathaniel Starkman, Jo Bovy, Chris Carr} % get rid of the bottom page number
+
+% -----------------------------------------------------------------------------
+%                                     TOC
+% -----------------------------------------------------------------------------
+
+% \tableofcontents
+% \let\tableofcontents\relax
+% \listoffigures
+% \listoftables
+
+% -----------------------------------------------------------------------------
+%                                  CONTENT
+% -----------------------------------------------------------------------------
+
+The current Galpy implementation of the SCF density field. This is very similar to other implementations, different mostly in whether the full $Y_{lm}$ is used over the associated Legendre.
+
+\begin{flalign}
+    \rho(r, \theta, \phi) &= \sum_{n,l=0}^{\infty} \sum_{m=0}^{l} \tilde{\rho}_{nlm}(r) \left[A_{nlm} \cos({m\phi}) + B_{nlm} \sin{m\phi} \right] P_{l}^{m}(\cos{\theta}) \label{eq:rho} &
+\end{flalign}
+
+\textbf{Note I made a mistake in $\tilde{\rho}_{nlm}(r)$. I think it is actually in 2 indices $\tilde{\rho}_{nl}(r)$. This doesn't make a difference, except to clean up some math here or there.}
+
+\section{Sampling from CDFs} % (fold)
+\label{sec:sampling_from_cdfs}
+
+
+    \subsection{CDF(r)} % (fold)
+    \label{sub:cdf_r}
+
+        The CDF in $r$ is
+
+        \begin{flalign}
+            \mathbf{R}(r) &= \frac{1}{N} \int_0^r dV \rho(r', \theta', \phi') = \frac{m(\leq r)}{M_{tot}} &
+        \end{flalign}
+
+        The numerator and denominator are galpy functions.
+
+        Numerically sampling from the CDF is challenging in these coordinates because the domain ($r$) is infinite on the half-open interval $[0, \infty)$. We switch to the a finite domain
+
+        \begin{equation}\label{eq:ho_2_15}
+         \zeta = \frac{r-1}{r+1}
+        \end{equation}
+
+        Where the points $r=0, \infty$ correspond to $\zeta=-1, 1$, respectively.
+
+        After a set of sample points $\{\zeta\}$ is drawn, they are transformed back to $r$ using
+
+        \begin{equation}\label{eq:ho_2_16}
+         r = \frac{1+\zeta}{1-\zeta}
+        \end{equation}
+
+
+    % subsection cdf_r (end)
+
+    \subsection[CDF(theta;r)]{CDF($\theta$;r)} % (fold)
+    \label{sub:cdf_theta}
+
+        First lets start with a definition: $\theta \in [-\frac{\pi}{2}, \frac{\pi}{2}]$, from the South to North pole, respectively.
+
+        \textbf{Double check this is compatible with galpy's definition. Will require mapping to array indices, otherwise.}
+        \vspace{10pt}
+
+        The CDF for $x=\cos{\theta}$, at a given $r$ is
+
+        \begin{flalign}
+            \mathbf{\Theta}(\cos^{-1}x; r)
+            &= \frac{1}{N} \int_{0}^{2\pi}\rm{d}\phi' \int_{0}^{\cos^{-1}x}\rm{d}\theta' r^2 \sin(\theta') \rho(r', \theta', \phi') & \\
+        \intertext{\quad We first change to $\rm{d}\cos(\theta) = -\sin(\theta)\rm{d}\theta$.}
+            &= \frac{r^2}{N} \int_{-1}^{x}\rm{d}\cos\theta' \int_{0}^{2\pi}\rm{d}\phi' \; \rho(r', \theta', \phi') & \\
+        \intertext{\quad Substituting in \eqref{eq:rho}. Note that over the interval $[0, 2\pi)$ only $m=0$ for $\cos{m\phi}$ is nonzero. Therefore can can also simplify to find}
+            &= \frac{r^2}{N} \int_{-1}^{x}\rm{d}\cos\theta' \int_{0}^{2\pi}\rm{d}\phi' \; \sum_{n,l=0}^{n,l_{\max}} \tilde{\rho}_{nl0}(r) A_{nl0} P_{l}^{0}(\cos\theta') & \\
+        \intertext{\quad No term depends on $\phi$, so we do the integral}
+            &= \frac{2\pi r^2}{N} \int_{-1}^{x}\rm{d}\cos\theta' \sum_{n,l=0}^{n,l_{\max}} \tilde{\rho}_{nl0}(r) A_{nl0} P_{l}^{0}(\cos\theta') & \\    
+        \intertext{\quad Simplifying, moving in the integral}
+            &= \frac{2\pi r^2}{N} \sum_{n,l=0}^{n,l_{\max}} \tilde{\rho}_{nl0}(r) A_{nl0} \int_{-1}^{x}\rm{d}\cos\theta' \; P_{l}^{0}(\cos{\theta'}) & \\
+        \intertext{\quad We can do the $n$-sum. Let $Q_l(r) = \sum_{n=0}^{n_{\max}}A_{nl0} \tilde{\rho}_{nl0}(r)$ }
+            &= \frac{2\pi r^2}{N} \sum_{l=0}^{l_{\max}} Q_l(r) \int_{-1}^{x}\rm{d}\cos\theta' \; P_{l}^{0}(\cos{\theta'}) & \\
+        \intertext{\quad Doing the integral}
+            &= \frac{2\pi r^2}{N} \sum_{l=0}^{l_{\max}} Q_l(r) \left[\frac{2\sin(\pi l)}{\pi l (l+1)} + \frac{\sqrt{1-x^2} P_{l+1}^{1}(x)}{l(l+1)} \right] & \\
+        \intertext{Note that since $l\in \mathds{Z}$, only $l=0$ is nonzero in the $\sin$ term.}
+            &= \frac{2\pi r^2}{N} \sum_{l=0}^{l_{\max}} Q_l(r) \left[2\delta_{l0} + \frac{\sqrt{1-x^2} P_{l+1}^{1}(x)}{l(l+1)} \right] \\
+            &= \frac{2\pi r^2}{N} \left[2 Q_0(r) + \sum_{l=0}^{l_{\max}} Q_l(r) \frac{\sqrt{1-x^2} P_{l+1}^{1}(x)}{l(l+1)} \right] \label{eq:theta_unnormalized}
+        % \intertext{\quad Doing the integral}
+        %     &= \frac{2\pi r^2}{N} \sum_{n,l=0}^{n,l_{\max}} A_{nl0} \tilde{\rho}_{nl0}(r) \left[\frac{2\sin(\pi l)}{\pi l (l+1)} + \frac{P_{l+1}(x) - P_{l-1}(x)}{2l + 1} \right] & \\
+        % \intertext{Note that since $l\in \mathds{Z}$, only $l=0$ is nonzero in the $\sin$ term.}
+        %     &= \frac{2\pi r^2}{N} \sum_{n,l=0}^{n,l_{\max}} A_{nl0} \tilde{\rho}_{nl0}(r) \left[2\delta_{l0} + \frac{P_{l+1}(x) - P_{l-1}(x)}{2l + 1} \right] & \\
+        % \intertext{\quad We can do the $n$-sum. Let $Q_l(r) = \sum_{n=0}^{n_{\max}}A_{nl0} \tilde{\rho}_{nl0}(r)$ }
+        %     &= \frac{2\pi r^2 }{N} \sum_{l=0}^{l_{\max}} Q_l(r) \left[2\delta_{l0} + \frac{P_{l+1}(x) - P_{l-1}(x)}{2l + 1} \right]  \label{eq:theta_unnormalized}
+        \end{flalign}
+
+        The normalization constant is the above, but with $x \rightarrow 1$. The last term in \eqref{eq:theta_unnormalized} is 0 for $x=1$, leaving
+        $N = 4\pi r^2 Q_0(r)$.
+
+        Therefore,
+
+        \begin{flalign}
+            \mathbf{\Theta}(x; r)
+            &= 1 + \frac{1}{2 Q_0(r)}\sum_{l=0}^{l_{\max}} Q_l(r) \frac{\sqrt{1-x^2} P_{l+1}^{1}(x)}{l(l+1)}  \\
+            &= \frac{1+x}{2} + \frac{1}{2 Q_0(r)}\sum_{l=1}^{l_{\max}} Q_l(r) \frac{\sqrt{1-x^2} P_{l+1}^{1}(x)}{l(l+1)}
+        \intertext{\quad an equivalent form, using a recurrence relation:}
+            &= \frac{1+x}{2} + \frac{1}{2 Q_0(r)} \sum_{l=1}^{l_{\max}} Q_l(r) \frac{P_{l+1}(x) - P_{l-1}(x)}{2l + 1}
+        \end{flalign}
+
+        As a computational note, many terms can be pre-computed. Also if a minimum resolution is set, than many terms can be computed on a grid and interpolated / splined. This will prevent computational time from scaling with the number of sample points.
+
+        $=>$ \textbf{lay grid in r and theta and spline this CDF for use if sampling many points.}    
+
+    % subsection cdf_theta (end)
+
+    \subsection[CDF(phi;r,theta)]{CDF($\phi$;r,$\theta$)} % (fold)
+    \label{sub:cdf_phi}
+
+        Let $y = \phi \in [0, 2\pi)$
+
+        \begin{flalign}
+            \mathbf{\Phi}(y; r, \theta)
+            &= \frac{1}{N} \int_{0}^{y} \rm{d}\phi \; r\sin\theta \sum_{n,l=0}^{n/l_{\max}} \sum_{m=0}^{l} \tilde{\rho}_{nlm}(r) \left[A_{nlm} \cos({m\phi}) + B_{nlm} \sin{m\phi} \right] P_{l}^{m}(\cos{\theta}) & \\
+        \intertext{Pulling in the integral}
+            &= \frac{r\sin\theta}{N} \sum_{n,l=0}^{n/l_{\max}} \sum_{m=0}^{l} \tilde{\rho}_{nlm}(r) P_{l}^{m}(\cos{\theta}) \int_{0}^{y} \rm{d}\phi \left[A_{nlm} \cos({m\phi}) + B_{nlm} \sin{m\phi} \right] & \\
+        \intertext{Performing the integrals}
+            &= \frac{r\sin\theta}{N} \sum_{n,l=0}^{n/l_{\max}} \sum_{m=0}^{l} \tilde{\rho}_{nlm}(r) P_{l}^{m}(\cos{\theta}) \left[A_{nlm} \frac{\sin(m y)}{m} + B_{nlm} \frac{1-\cos(m y)}{m} \right] & \\
+        \intertext{The $n$-sum does not depend on $y$, so let $[R/S]_{l}^{m}(r,x)= \left(\sum_{n=0}^{n_{\max}} [A/B]_{nlm} \tilde{\rho}_{nlm}(r) \right) \sqrt{1-x^2} P_{l}^{m}(x)$}
+            &= \frac{r}{N} \sum_{l=0}^{l_{\max}} \sum_{m=0}^{l} \left[R_{l}^{m}(r,x) \frac{\sin(m y)}{m} + S_{l}^{m}(r,x) \frac{1-\cos(m y)}{m} \right] & \\
+        \intertext{
+            we are interested in doing the $l$-sum, but cannot since $m$ depends on $l$. By reindexing, this can be done. Let $m'\in [0, l_{\max}] \in \mathds{Z}$ and $l' \in [m', l_{\max}] \in \mathds{Z}$. Now the summation order can be reversed.
+        }
+            &= \frac{r}{N} \sum_{m'=0}^{l_{\max}} \sum_{l'=m'}^{l_{\max}} \left[R_{l'}^{m'}(r,x) \frac{\sin(m' y)}{m'} + S_{l'}^{m'}(r,x) \frac{1-\cos(m' y)}{m'} \right] & \\
+        \intertext{
+            Let $[R/S]^{m}(r, x) = \sum_{l=m}^{l_{\max}} [R/S]_{l}^{m}(r,x)$
+        }
+            &= \frac{r}{N} \sum_{m'=0}^{l_{\max}} \left[R^{m'}(r,x) \frac{\sin(m' y)}{m'} + S^{m'}(r,x) \frac{1-\cos(m' y)}{m'} \right] \\
+        \intertext{Note that for $m'=0$ many of these terms disappear}
+            &= \frac{r}{N} \left(R^{0}(r,x) \, y + \sum_{m'=1}^{l_{\max}} \left[R^{m'}(r,x) \frac{\sin(m' y)}{m'} + S^{m'}(r,x) \frac{1-\cos(m' y)}{m'} \right] \right) \\
+        \end{flalign}
+
+        The normalization constant is the above, but with $y \rightarrow 2\pi$. For $m> 0$ all terms are 0, leaving
+
+        \begin{flalign}
+            N &= 2\pi r R^{0}(r,x)
+        \end{flalign}
+
+
+        Therefore
+
+        \begin{equation}
+            \mathbf{\Phi}(y; r, \theta) = \frac{y}{2\pi} + \frac{1}{R^{0}(r,x)} \sum_{m'=1}^{l_{\max}} \left[R^{m'}(r,x) \frac{\sin(m'y)}{2\pi m'} + S^{m'}(r,x) \frac{1-\cos(m' y)}{2\pi m'} \right]
+        \end{equation}
+
+        Computational notes: the R/S terms can be precomputed along the $m$ axis using a cumulative sum (the vector of summations will be length $m$-to-$l_{\max}$), then multiplied by the $m$-to-$l_{\max}$ vector of $\sin,\cos (y)$.
+
+    % subsection cdf_phi (end)
+
+% section sampling_from_cdfs (end)
+
+
+\section[Choosing Nmax, Lmax]{Choosing $N_{\max}$, $L_{\max}$} % (fold)
+\label{sec:choosing_nmax_lmax}
+
+    An important consideration for basis-function expansion (BFE) representations is that of resolution -- to able to localize a features to a region of volume $V$. BFE representations with low numbers of coefficients
+    tend to have quite poor resolution and increasing the number of coefficients will similarly increase resolution. However computations can become quite resource intensive on large expansions.
+    The question then, is what is the minimum number of coefficients necessary to achieve a specific resolution?
+
+    In the context of the Self-Consistent Field, this question is posed instead as the minimum $N_{\max}$ and $L_{\max}$, since the number of coefficients is $N_{\max} \times L_{\max}^2$.
+    We approach this problem in two parts -- first $L_{\max}$, then $N_{\max}$ -- since each term encodes different information -- the angular and radial resolution, respectively.
+
+    The angular component of the SCF density function is $\propto K_{nl} Y_{lm}(\theta, \phi)$ \citep[eq 2.24]{HO92}, where $K_{nl}$ is a constant.
+
+    For spherical patches, the corresponding resolution is [citation needed]
+
+    \begin{equation}\label{eq:angular_resolution}
+        A_{\Omega}(\ell) \approx \frac{4\pi}{(\ell+1)^2} \; \rm{[sr]}
+    \end{equation}
+
+    The radial component of the SCF is not distributed equally in $r$. Examining at \citet[eq 2.24]{HO92}, SCF density function is $\propto K_{nl} C_{n}^{\alpha}(\zeta)$, where $C$ are the Gegenbauer polynomials. These are functions of $\zeta \equiv \frac{{r}/{a} - 1}{{r}/{a} + 1}$, not $r$. The Gegenbauer polynomial $C_{n}^{\alpha}(\zeta)$ has $n$ zeros distributed approximately evenly over $\zeta \in (-1, 1)$. Stated in terms of the inter-$\zeta$ distance, $\Delta\zeta(n) \simeq \frac{2}{n}$.
+
+    Starting from $\zeta$:
+    \begin{flalign}
+        \zeta &\equiv \frac{r/a - 1}{r/a + 1} \\
+        d \zeta &= \frac{2}{(\frac{r}{a}+1)^2} \frac{dr}{a}
+    \end{flalign}
+
+    Taking $d\zeta \approx \Delta\zeta$ and $dr \approx \Delta r$
+
+    \begin{equation}\label{eq:radial_resolution}
+        \frac{\Delta{r}}{a}(n) \approx \frac{(\frac{r}{a}+1)^2}{n}
+    \end{equation}
+
+    Therefore, the smallest resolvable volume (per cubic scale length) is
+
+    \begin{align}
+        \frac{V(r, n, \ell)}{a^3}
+        &= \frac{4\pi}{(\ell+1)^2} \left(\frac{r}{a}\right)^2 \frac{\Delta{r}}{a} \\
+        &= \frac{4\pi}{(\ell+1)^2} \left(\frac{r}{a}\right)^2 \frac{(\frac{r}{a}+1)^2}{n}  \label{eq:resolution}
+    \end{align}
+
+    Note that the resolution is $r$-dependent. At fixed $n, \ell$ lower $r$ has higher resolution.
+    Therefore, the important consideration for $N_{\max}$ and $L_{\max}$ will often be the required $\Delta r$ and and $A_{\Omega}$ at $r_{\max}$, the largest relevant $r$.
+
+% section choosing_nmax_lmax (end)
+
+
+% -----------------------------------------------------------------------------
+%                                BIBLIGRAPHY
+% -----------------------------------------------------------------------------
+
+\newpage
+\setlength{\bibsep}{6pt}
+\bibliographystyle{abbrv}
+\bibliography{main}
+
+
+%------------------------------------------------------------------------------
+\end{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
